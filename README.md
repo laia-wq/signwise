@@ -8,12 +8,17 @@ Browser-based ASL alphabet practice with experimental camera feedback.
 
 - Learn A–Z and ILY with illustrated handshapes and step-by-step instructions.
 - Track 21 hand landmarks with MediaPipe to measure finger bends, thumb placement, spacing, and hand orientation.
-- Get a live match score with highlighted fingers and written suggestions for adjusting your handshape.
-- Complete letters automatically by holding a shape that scores above competing letters.
-- Recognize J and Z by checking fingertip movement paths adjusted for hand size and handedness.
-- Practice spelling your name with separate camera matches for each letter, including repeated letters.
-- Take timed camera tests and practice or retest the letters you missed.
-- Check hand visibility, framing, and stability before camera scoring begins.
+- Normalize distances by palm size and measure thumb placement relative to the hand’s own axes.
+- Apply letter-specific rules for fingertip contact, finger crossing, rounded shapes, and thumb positioning.
+- Combine overall rule fit with the weakest match, capping scores when critical shape checks fail.
+- Highlight the fingers associated with a failing rule and show a matching written correction.
+- Complete static letters after an 88+ score, a 4-point lead over competing shapes, and a continuous 1.1-second hold.
+- Recognize J and Z through ordered fingertip strokes, turn direction, and path checks adjusted for hand size and handedness.
+- Reset motion tracking after sudden position jumps, stale frames, or changes in the detected hand.
+- Practice names letter by letter, requiring a brief hand release so repeated letters cannot reuse the same match.
+- Take randomized timed tests with hidden hints, automatic timeout scoring, and focused practice for missed letters.
+- Pause tests when the camera stops or the tab is hidden, preserving the remaining attempt time.
+- Check hand visibility, framing, size, and stability before camera scoring begins.
 - Process video entirely in your browser and save progress locally without uploading camera frames.
 
 ## Run locally
