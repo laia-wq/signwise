@@ -29,7 +29,19 @@ export function features(points,w){
  const thumbScreen=sub(points[4],points[2]);
  const roundness=[5,9,13,17].map(b=>dist(w[b],w[b+3])/(dist(w[b],w[b+1])+dist(w[b+1],w[b+2])+dist(w[b+2],w[b+3])||1));
  const gap=across(w[10])-across(w[6]);
- return {roundness,thumbStraight:angle(w[2],w[3],w[4]),thumbSpread:angle(w[4],w[2],w[5]),
+ // Measure thumb exit against the actual bent knuckles, not fixed palm fractions.
+ const knuckles=[6,10,14,18].map(i=>across(w[i])),tx=across(w[4]);
+ let thumbSlot=NaN;
+ for(let i=0;i<3;i++)if(knuckles[i+1]-knuckles[i]>.06&&tx>=knuckles[i]&&tx<=knuckles[i+1])thumbSlot=i+(tx-knuckles[i])/(knuckles[i+1]-knuckles[i]);
+ const tipToThumb=[8,12,16,20].map(i=>Math.min(segmentDistance(w[i],w[2],w[3]),segmentDistance(w[i],w[3],w[4]))/palm);
+ const pipAngles=[5,9,13,17].map(b=>angle(w[b],w[b+1],w[b+2]));
+ const dipAngles=[5,9,13,17].map(b=>angle(w[b+1],w[b+2],w[b+3]));
+ return {thumbSlot,pipAngles,dipAngles,
+  eContact:Math.max(...tipToThumb.slice(0,3)),
+  eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
+  localCover:[6,10,14].map(i=>depth(w[3])-depth(w[i])),
+  thumbSide:Math.abs(thumbScreen.x)/(Math.hypot(thumbScreen.x,thumbScreen.y)||1),
+  roundness,thumbStraight:angle(w[2],w[3],w[4]),thumbSpread:angle(w[4],w[2],w[5]),
   thumbParallel:dot(unit(thumbVector),unit(indexVector)),thumbDown:thumbScreen.y/(Math.hypot(thumbScreen.x,thumbScreen.y)||1),
   thumbContact:fingerContact([5,9,13,17]),thumbRingContact:fingerContact([13,17]),thumbPinkyContact:fingerContact([17]),
   thumbBetween:Math.abs(gap)>.04?(across(w[4])-across(w[6]))/gap:NaN,
@@ -41,14 +53,14 @@ export function features(points,w){
   ext,thumb:across(w[4]),thumbOut:dist(w[4],w[5])/palm,thumbIndex:dist(w[4],w[8])/palm,thumbMiddle:dist(w[4],w[10])/palm,tipGap:dist(w[8],w[12])/palm,ringGap:dist(w[12],w[16])/palm,cross:across(w[8])-across(w[12]),thumbTips:[8,12,16,20].reduce((sum,i)=>sum+dist(w[4],w[i])/palm,0)/4,up:-fingerVec.y/len,side:Math.abs(fingerVec.x)/len,down:fingerVec.y/len,pinky:points[20],index:points[8],palm};
 }
 // Four finger-extension targets. Null means a shape-specific rule handles it.
-const patterns={A:[0,0,0,0],B:[1,1,1,1],C:[.5,.5,.5,.5],D:[1,0,0,0],E:[0,0,0,0],F:[0,1,1,1],G:[1,0,0,0],H:[1,1,0,0],I:[0,0,0,1],K:[1,1,0,0],L:[1,0,0,0],M:[0,0,0,0],N:[0,0,0,0],O:[.35,.35,.35,.35],P:[1,1,0,0],Q:[1,0,0,0],R:[1,1,0,0],S:[0,0,0,0],T:[0,0,0,0],U:[1,1,0,0],V:[1,1,0,0],W:[1,1,1,0],X:[.4,0,0,0],Y:[0,0,0,1],ILY:[1,0,0,1]};
+const patterns={A:[0,0,0,0],B:[1,1,1,1],C:[.5,.5,.5,.5],D:[1,0,0,0],E:[0,0,0,0],F:[0,1,1,1],G:[1,0,0,0],H:[1,1,0,0],I:[0,0,0,1],K:[1,1,0,0],L:[1,0,0,0],M:[0,0,0,0],N:[0,0,0,0],O:[.35,.35,.35,.35],P:[1,1,0,0],Q:[1,0,0,0],R:[1,1,0,0],S:[0,0,0,0],T:[0,0,0,0],U:[1,1,0,0],V:[1,1,0,0],W:[1,1,1,0],X:[.4,0,0,0],Y:[0,0,0,1],ILY:[1,0,0,1],Z:[1,0,0,0]};
 export function scoreFeatures(f,id){
  const target=patterns[id];if(!f||!target)return {score:0,hint:'Keep your entire hand in the frame.'};
  const rules=[],add=(fit,hint,critical=false,fingers=[])=>rules.push({fit:clamp(fit),hint,critical,fingers});
  const required=(value,lo,hi,hint,slack=.25)=>add(range(value,lo,hi,slack),hint,true);
  target.forEach((x,i)=>{
-  if(id==='C'||id==='O')return; // Use whole-finger curvature, not straight/curl targets.
-  const fit=id==='C'?range(f.ext[i],.35,.90,.35):id==='O'?range(f.ext[i],.15,.80,.35):id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):x===1?range(f.ext[i],.80,1,.30):x===0?range(f.ext[i],0,.28,.30):range(f.ext[i],x-.18,x+.18,.4);
+  if(id==='C'||id==='O'||id==='E')return; // Use whole-finger curvature, not straight/curl targets.
+  const fit=id==='C'?range(f.ext[i],.35,.90,.35):id==='O'?range(f.ext[i],.15,.80,.35):id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):x===1?range(f.ext[i],.80,1,.30):x===0?range(f.ext[i],0,['M','N','T'].includes(id)?.42:.28,.30):range(f.ext[i],x-.18,x+.18,.4);
   add(fit,`${x===1?'Extend':x===0?'Curl':'Curve'} your ${['index','middle','ring','pinky'][i]} finger.`,true,[i+1]);
  });
  const upright=()=>add(range(f.up,.65,1,.7),'Point the raised fingers upward.');
@@ -72,7 +84,11 @@ export function scoreFeatures(f,id){
  case 'B':add(range(f.thumb,.2,.9,.4),'Fold your thumb across the palm.');add(range(f.tipGap,0,.27,.25),'Bring your fingers together.');upright();break;
  case 'C':round();required(f.thumbIndex,.38,1.05,'Leave an open C-shaped gap between thumb and fingertips.',.22);break;
  case 'D':add(range(f.thumbMiddle,0,.45,.4),'Touch your thumb to the curled fingers.');add(range(f.thumbIndex,.8,2,.5),'Keep the index separate from the thumb.');upright();break;
- case 'E':add(range(f.thumbTips,0,.36,.3),'Bring your curled fingertips close to the thumb underneath.');add(range(f.thumb,.12,.9,.4),'Place your thumb beneath the curled fingertips.');break;
+ case 'E':
+  (f.dipAngles||[NaN]).forEach(v=>required(v,35,145,'Bend the last joints so your fingertips curl down toward the thumb.',30));
+  required(f.eContact,0,.38,'Bring the curled fingertips toward the top of your thumb.',.25);
+  required(f.eHeight,-.08,.55,'Keep your thumb underneath the curled fingertips, not across their front.',.2);
+  required(f.thumb,.08,1.05,'Fold your thumb across beneath your fingertips.',.25);break;
  case 'F':add(range(f.thumbIndex,0,.22,.3),'Touch index fingertip and thumb into a circle.');break;
  case 'G':case 'Q':
   required(f.thumbIndex,.16,.75,'Keep a small gap between the extended thumb and index finger.',.25);
@@ -80,15 +96,24 @@ export function scoreFeatures(f,id){
   required(f.thumbParallel,.60,1,'Point the thumb and index finger in the same direction.',.30);
   required(f.thumb,-1,.22,'Keep your thumb beside the index, not across the fist.',.25);
   required(id==='Q'?f.down:f.side,.78,1,id==='Q'?'Turn the whole G handshape downward.':'Point the index and thumb sideways.',.30);
+  if(id==='G')required(f.thumbSide,.65,1,'Point your thumb sideways alongside the index finger.',.25);
   if(id==='Q')required(f.thumbDown,.55,1,'Point both the thumb and index downward.',.30);
   break;
  case 'H':case 'U':add(range(f.tipGap,0,.28,.25),'Keep index and middle fingers together.');thumbIn();add(id==='H'?range(f.side,.8,1,.6):range(f.up,.65,1,.6),id==='H'?'Turn the two fingers sideways.':'Point both fingers up.');add(range(f.cross,-1,-.04,.2),'Uncross your fingers.');break;
- case 'I':thumbIn();break;
+ case 'I':case 'Z':thumbIn();break;
  case 'K':case 'P':spread();add(range(f.thumbMiddle,0,.35,.3),'Place your thumb against the base of the middle finger.');add(id==='P'?range(f.down,.35,1,.7):range(f.up,.5,1,.7),id==='P'?'Rotate the K shape downward.':'Point the K shape upward.');break;
  case 'L':thumbExtended();add(range(f.thumbOut,.8,1.8,.5),'Extend your thumb out to the side.');add(range(f.thumbIndex,1,2.5,.5),'Open the L between thumb and index finger.');upright();break;
- case 'M':case 'N':{const intervals={M:[.68,1.12],N:[.36,.62]};required(f.thumb,...intervals[id],`Position your thumb ${id==='M'?'under three fingers':'under two fingers'}.`,.2);required(f.thumbCover,-.7,.06,'Wrap the fingers over the thumb.',.18);break;}
- case 'T':required(f.thumbBetween,.20,.85,'Let the thumb tip peek between the index and middle fingers.',.25);required(f.thumbCover,-.65,.04,'Wrap your index finger over the thumb; do not lay the thumb on top.',.16);required(f.thumbContact,0,.30,'Keep your fist closed around the tucked thumb.',.20);break;
- case 'O':round();required(f.thumbIndex,0,.23,'Touch the index fingertip to the thumb to close the O.',.18);required(f.closure,0,.55,'Bring all four fingertips toward the thumb, not just the index.',.25);break;
+ case 'M':case 'N':case 'T':{
+  const slot={T:0,N:1,M:2}[id],name={T:'index and middle',N:'middle and ring',M:'ring and pinky'}[id];
+  required(f.thumbSlot,slot+.15,slot+.85,`Let the thumb tip show between your ${name} fingers. Turn slightly if it is hidden.`,.2);
+  required(f.localCover?.[slot],-.8,.10,'Wrap the fingers over the thumb, rather than laying the thumb on top.',.18);
+  required(f.thumbContact,0,.38,'Keep the fingers gently closed around your thumb.',.22);break;
+ }
+ case 'O':
+  // O may be more tightly rounded than C, but a flat hand or fist is not O.
+  (f.roundness||[NaN]).forEach(v=>required(v,.32,.88,'Keep a rounded space inside the O; do not flatten the fingers into a fist.',.14));
+  (f.pipAngles||[NaN]).forEach(v=>required(v,65,155,'Curve your fingers smoothly around the O.',25));
+  required(f.roundSpread,0,.43,'Keep the curved fingers together.',.22);required(f.thumbIndex,0,.23,'Touch the index fingertip to the thumb to close the O.',.18);required(f.closure,0,.55,'Bring all four fingertips toward the thumb, not just the index.',.25);break;
  case 'R':add(range(f.cross,0,.5,.2),'Cross your index and middle fingers.');thumbIn();upright();break;
  case 'S':required(f.thumb,.18,.95,'Lay your thumb across the front of your fist.',.25);required(f.thumbContact,0,.32,'Rest the thumb on the curled fingers.',.22);required(f.thumbFront,-.06,.65,'Place the thumb on the front of the fist, not underneath the fingers.',.18);required(f.thumbCover,-.06,.65,'Lay the thumb over the fist rather than tucking it inside.',.16);break;
  case 'V':spread();thumbIn();upright();break;
@@ -107,11 +132,20 @@ export function scoreFeatures(f,id){
 }
 export function assessHand(points,world,id){
  const f=features(points,world);if(!f)return {score:0,match:false,valid:false,title:'Show one whole hand clearly.',detail:'Keep every fingertip in view, move closer, and use even lighting.'};
- const base=id==='J'?'I':id==='Z'?'D':id;
+ if(id==='J'||id==='Z'){
+  const own=scoreMotionShape(f,id);
+  return {score:own.score,match:own.score>=88,valid:true,features:f,correction:own.correction,title:own.score>=88?'Starting shape ready.':own.hint,detail:'Keep this handshape while tracing the movement.'};
+ }
+ const base=id;
  const scores=STATIC_IDS.map(letter=>({id:letter,...scoreFeatures(f,letter)})).sort((a,b)=>b.score-a.score);
  const own=scores.find(x=>x.id===base),rival=scores.find(x=>x.id!==base);
  const margin=own.score-rival.score;
  return {score:own.score,match:own.score>=88&&margin>=4,valid:true,best:scores[0].id,margin,features:f,correction:own.score<88?own.correction:null,title:own.score>=88&&margin<4?'This shape is still ambiguous.':own.score>=88?'Keep that shape steady.':own.hint,detail:own.score>=88&&margin<4?'Adjust the thumb and hand angle so the camera can distinguish the letter.':'Match score is an experimental estimate, not a certified ASL grade.'};
+}
+// Z uses an index-pointing shape with a tucked thumb, not D's thumb circle.
+export function scoreMotionShape(f,id){
+ if(id==='J')return scoreFeatures(f,'I');
+ return scoreFeatures(f,'Z');
 }
 // Palm-scaled screen trajectories. Scale is fixed at the start of each attempt;
 // changing distance substantially resets it instead of changing the drawn path.
@@ -123,8 +157,30 @@ const cleanStroke=ps=>{
 };
 export class MotionTracker{
  constructor(){this.reset();}
- reset(){this.samples=[];this.id=null;this.last=0;this.hand=null;this.scale=null;this.origin=null;}
+ reset(){this.samples=[];this.id=null;this.last=0;this.hand=null;this.scale=null;this.origin=null;this.armed=false;this.readySince=null;this.anchor=null;this.completedAt=null;}
+ get trail(){return !this.origin||!this.scale?[]:this.samples.map(p=>({x:this.origin.x+p.x*this.scale/.2*(this.hand==='Left'?1:-1),y:this.origin.y+p.y*this.scale/.2}));}
  update(id,point,now,shapeOK,hand='Right',palmScale=.2){
+  const interrupted=this.id!==id||this.hand!==hand||now-this.last>350||this.scale&&Math.abs(palmScale/this.scale-1)>.35;
+  if(interrupted||!shapeOK||!point||!Number.isFinite(point.x+point.y)||!(palmScale>.04)){
+   this.reset();this.id=id;this.hand=hand;this.last=now;
+   if(!shapeOK||!point||!Number.isFinite(point.x+point.y)||!(palmScale>.04))return {score:0,match:false,phase:'shape'};
+  }
+  this.last=now;
+  if(this.completedAt!==null){
+   if(now-this.completedAt<1400)return {score:100,match:true,phase:'matched'};
+   this.reset();this.id=id;this.hand=hand;this.last=now;
+  }
+  if(!this.armed){
+   if(!this.anchor||Math.hypot(point.x-this.anchor.x,point.y-this.anchor.y)>palmScale*.12){this.anchor={...point};this.readySince=now;}
+   if(now-this.readySince<350)return {score:0,match:false,phase:'arming',ready:(now-this.readySince)/350};
+   this.armed=true;
+  }
+  const result=this.track(id,point,now,true,hand,palmScale);
+  if(!this.origin){this.armed=false;this.anchor=null;this.readySince=null;return {...result,phase:'retry'};}
+  if(result.match)this.completedAt=now;
+  return {...result,phase:result.match?'matched':'drawing'};
+ }
+ track(id,point,now,shapeOK,hand='Right',palmScale=.2){
   if(this.id!==id||this.hand!==hand||now-this.last>350||this.scale&&Math.abs(palmScale/this.scale-1)>.35){this.reset();this.id=id;this.hand=hand;}
   this.last=now;
   if(!shapeOK||!point||!Number.isFinite(point.x+point.y)||!(palmScale>.04)){this.samples=[];this.origin=null;this.scale=null;return {score:0,match:false};}
