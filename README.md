@@ -6,12 +6,15 @@ Browser-based ASL alphabet practice with experimental camera feedback.
 
 ## Features
 
-- Illustrated A–Z lessons and a bonus ILY handshape.
-- Live match scores, finger highlights, and written corrections.
-- Automatic completion, including motion tracking for J and Z.
-- Letter-by-letter name spelling practice.
-- Timed tests with missed-letter practice and retests.
-- Camera framing checks and support for either hand.
+- **Complete alphabet practice:** Illustrated A–Z lessons, step-by-step instructions, and a bonus ILY handshape.
+- **Real-time hand analysis:** MediaPipe tracks 21 hand landmarks; custom geometric rules evaluate finger extension, curvature, thumb angles, contact, spacing, and orientation.
+- **Targeted visual feedback:** Live 0–100 match scores, highlighted finger segments, and written corrections based on the weakest handshape rule.
+- **Automatic completion with ambiguity checks:** Compares the target against competing letters and requires a sustained, distinct match. Critical thumb-placement errors prevent a passing score.
+- **J/Z motion recognition:** Tracks fingertip trajectories, checks ordered strokes and turns, scales movement to apparent hand size, and adjusts direction for left or right hands.
+- **Name spelling sequences:** Converts names into letter-by-letter exercises, normalizes accented Latin characters, and requires a hand release between matches so repeated letters count separately.
+- **Timed tests and focused retries:** Randomized letters, configurable time limits, hidden hints, automatic scoring, missed-letter practice, and targeted retests. Camera interruptions pause the timer.
+- **Camera readiness checks:** Detects missing or multiple hands, checks framing and apparent hand size, and requires a steady view before scoring starts.
+- **On-device processing:** Camera frames stay in the browser; progress and results persist locally. No backend inference, accounts, or API keys required.
 
 ## Run locally
 
