@@ -10,5 +10,5 @@ export class TrackingReport {
   this.frames.push(JSON.parse(JSON.stringify({t:Math.round(now-this.started),landmarks,worldLandmarks,handedness,score,match,valid,features,checks,status,motion})));
  }
  stop(reason='stopped'){this.recording=false;this.reason=reason;}
- export(){return {format:'signwise-tracking-v1',appRevision:11,letter:this.letter,reason:this.reason,frames:this.frames};}
+ export(){return {format:'signwise-tracking-v1',appRevision:12,letter:this.letter,reason:this.reason,frames:this.frames};}
 }

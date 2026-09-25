@@ -1,8 +1,8 @@
-import {TrackingReport} from './diagnostics.js?v=11';
-import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=11';
-import {lessons} from './lessons.js?v=11';
-import {assessHand,MotionTracker} from './coach.js?v=11';
-import {HoldGate,CameraTest} from './session.js?v=11';
+import {TrackingReport} from './diagnostics.js?v=12';
+import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=12';
+import {lessons} from './lessons.js?v=12';
+import {assessHand,MotionTracker} from './coach.js?v=12';
+import {HoldGate,CameraTest} from './session.js?v=12';
 const $=id=>document.getElementById(id),video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
 let selected=0,completed=new Set(),active=false,stream=null,detector=null,detectorPromise=null,requestId=0,raf=0,lastFrame=-1,lastRun=0,lastFeedback='',test=null,testInterval=null,countdownUntil=0,scorePeak=0,lastHand=null,beginPending=false;
 const hold=new HoldGate(1100),motion=new MotionTracker(),setup=new SetupGate();

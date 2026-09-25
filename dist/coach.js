@@ -62,7 +62,11 @@ export function features(points,w){
  // depth straightens an occluded finger. Contact and world bend still gate W.
  const flat=p=>({...p,z:0});
  const pinkyTurn=dot(unit(sub(flat(points[18]),flat(points[17]))),unit(sub(flat(points[20]),flat(points[18]))));
- return {pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
+ const imagePalm=dist(points[0],points[9]);
+ const imageIndexTurn=dot(unit(sub(flat(points[6]),flat(points[5]))),unit(sub(flat(points[8]),flat(points[6]))));
+ const imageThumbContact=dist(points[4],points[8])/imagePalm;
+ const imageClosure=Math.max(...[8,12,16,20].map(i=>dist(points[4],points[i])/imagePalm));
+ return {imageIndexTurn,imageThumbContact,imageClosure,pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
   eContact:Math.max(...tipToThumb.slice(0,3)),
   eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
   localCover:[6,10,14].map(i=>depth(w[3])-depth(w[i])),
@@ -143,11 +147,14 @@ export function scoreFeatures(f,id){
   required(f.localCover?.[slot],-.8,.10,'Wrap the fingers over the thumb, rather than laying the thumb on top.',.18);
   required(f.thumbContact,0,.38,'Keep the fingers gently closed around your thumb.',.22);break;
  }
- case 'O':
+ case 'O':{
   // O may be more tightly rounded than C, but a flat hand or fist is not O.
   (f.roundness||[NaN]).forEach(v=>required(v,.30,.92,'Keep a rounded space inside the O; do not flatten the fingers into a fist.',.14));
   (f.pipAngles||[NaN]).forEach(v=>required(v,50,165,'Curve your fingers smoothly around the O.',25));
-  required(f.roundSpread,0,.43,'Keep the curved fingers together.',.22);required(f.thumbIndexContact,0,.28,'Bring the pads of your index finger and thumb together to close the O.',.18);required(f.closure,0,.55,'Bring all four fingertips toward the thumb, not just the index.',.25);break;
+  // Image landmarks include relative depth. Require both contact and a visible
+  // index bend before using them to corroborate uncertain world-space depth.
+  const imageContact=f.imageIndexTurn<-.2&&f.imageThumbContact<=.28&&f.imageClosure<=.45;
+  required(f.roundSpread,0,.43,'Keep the curved fingers together.',.22);required(imageContact?Math.min(f.thumbIndexContact,f.imageThumbContact):f.thumbIndexContact,0,.28,'Bring the pads of your index finger and thumb together to close the O.',.18);required(imageContact?Math.min(f.closure,f.imageClosure):f.closure,0,.55,'Bring all four fingertips toward the thumb, not just the index.',.25);break;}
  case 'R':add(range(f.cross,0,.5,.2),'Cross your index and middle fingers.');thumbIn();upright();break;
  case 'S':required(f.thumb,.18,.95,'Lay your thumb across the front of your fist.',.25);required(f.thumbContact,0,.32,'Rest the thumb on the curled fingers.',.22);required(f.thumbFront,-.06,.65,'Place the thumb on the front of the fist, not underneath the fingers.',.18);required(f.thumbCover,-.06,.65,'Lay the thumb over the fist rather than tucking it inside.',.16);break;
  case 'V':spread();thumbIn();upright();break;

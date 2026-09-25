@@ -235,3 +235,9 @@ assert(!assessFeatures({...supportedW,pinkyTurn:.9},'W').match);
 assert(!assessFeatures({...supportedW,thumbPinkyContact:.6},'W').match);
 assert(!assessFeatures({...supportedW,folded:[.94,.97,1,.95]},'W').match);
 console.log('Passed corroborated W pinky fold and negative controls.');
+// O can corroborate contact from image-space depth when the independently
+// estimated world depth separates fingertips that visibly close the circle.
+const imageO={...o,thumbIndexContact:.62,closure:1.24,imageIndexTurn:-.6,imageThumbContact:.24,imageClosure:.38};
+assert(assessFeatures(imageO,'O').match);
+for(const change of [{imageThumbContact:.5},{imageClosure:.7},{imageIndexTurn:.9},{roundness:[1,1,1,1]},{roundness:[.1,.1,.1,.1]}])assert(!assessFeatures({...imageO,...change},'O').match);
+console.log('Passed image-corroborated O contact, open-gap, straight-finger and fist controls.');
