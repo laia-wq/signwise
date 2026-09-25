@@ -58,7 +58,11 @@ export function features(points,w){
  const tipToThumb=[8,12,16,20].map(i=>Math.min(segmentDistance(w[i],w[2],w[3]),segmentDistance(w[i],w[3],w[4]))/palm);
  const pipAngles=[5,9,13,17].map(b=>angle(w[b],w[b+1],w[b+2]));
  const dipAngles=[5,9,13,17].map(b=>angle(w[b+1],w[b+2],w[b+3]));
- return {folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
+ // A visible reversal at the pinky PIP can corroborate a fold when world
+ // depth straightens an occluded finger. Contact and world bend still gate W.
+ const flat=p=>({...p,z:0});
+ const pinkyTurn=dot(unit(sub(flat(points[18]),flat(points[17]))),unit(sub(flat(points[20]),flat(points[18]))));
+ return {pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
   eContact:Math.max(...tipToThumb.slice(0,3)),
   eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
   localCover:[6,10,14].map(i=>depth(w[3])-depth(w[i])),
@@ -82,7 +86,8 @@ export function scoreFeatures(f,id){
  const required=(value,lo,hi,hint,slack=.25)=>add(range(value,lo,hi,slack),hint,true);
  target.forEach((x,i)=>{
   if(id==='C'||id==='O'||id==='E')return; // Use whole-finger curvature, not straight/curl targets.
-  const fit=id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):
+  const supportedPinky=id==='W'&&i===3&&f.pinkyTurn<-.45&&f.thumbPinkyContact<.25&&(f.folded?.[3]??f.ext[3])<.8;
+  const fit=supportedPinky?1:id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):
    (id==='K'||id==='P')&&i===1?range(f.ext[i],.5,1,.3):
    x===1?range(f.ext[i],.80,1,.30):x===0?range(f.folded?.[i]??f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
   add(fit,`${x===1?'Extend':x===0?'Curl':'Curve'} your ${['index','middle','ring','pinky'][i]} finger.`,true,[i+1]);

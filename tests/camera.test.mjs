@@ -227,3 +227,11 @@ for(const label of ['Right','Left'])for(const direction of [-1,1]){
  path.forEach((p,i)=>result=wrong.update('J',p,i*100,true,label,.2,-direction));assert(!result.match,'Hook away from the observed thumb is rejected');
 }
 console.log('Passed base-knuckle folded K landmarks, narrow profiles, and observed J hook direction.');
+// Corroborate a partially occluded W pinky with a visible PIP reversal and
+// thumb contact, without accepting an extended pinky or a detached thumb.
+const supportedW={...neutral,ext:[.94,.97,1,.68],folded:[.94,.97,1,.68],pinkyTurn:-.7,thumbPinkyContact:.15};
+assert(assessFeatures(supportedW,'W').match);
+assert(!assessFeatures({...supportedW,pinkyTurn:.9},'W').match);
+assert(!assessFeatures({...supportedW,thumbPinkyContact:.6},'W').match);
+assert(!assessFeatures({...supportedW,folded:[.94,.97,1,.95]},'W').match);
+console.log('Passed corroborated W pinky fold and negative controls.');
