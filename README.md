@@ -8,11 +8,11 @@ Browser-based ASL alphabet practice with experimental camera feedback.
 
 - Learn A–Z and ILY with illustrated handshapes and step-by-step instructions.
 - Track 21 hand landmarks with MediaPipe to measure finger bends, thumb placement, spacing, and hand orientation.
-- Normalize distances by palm size and measure thumb placement relative to the hand’s own axes.
+- Normalize distances by palm size, measure finger curls from their own joints and lengths, and locate the thumb relative to the hand’s axes.
 - Apply letter-specific rules for fingertip contact, finger crossing, rounded shapes, and thumb positioning.
 - Combine overall rule fit with the weakest match, capping scores when critical shape checks fail.
 - Highlight the fingers associated with a failing rule and show a matching written correction.
-- Complete static letters after an 88+ score, a 4-point lead over competing shapes, and a continuous 1.1-second hold.
+- Complete static letters after an 88+ score on the requested letter’s shape checks and a continuous 1.1-second hold.
 - Recognize J and Z through ordered fingertip strokes, turn direction, and path checks adjusted for hand size and handedness.
 - Reset motion tracking after sudden position jumps, stale frames, or changes in the detected hand.
 - Practice names letter by letter, requiring a brief hand release so repeated letters cannot reuse the same match.
@@ -39,7 +39,7 @@ npm test
 
 - **Stack:** HTML, CSS, JavaScript modules, MediaPipe Hand Landmarker 0.10.32.
 - **Recognition:** Custom geometric rules applied to hand landmarks; no server inference or API key.
-- **Completion:** Static shapes require a score of 88+, a 4-point lead over other shapes, and a 1.1-second hold. J/Z require a matching trajectory.
+- **Completion:** Static shapes require a score of 88+ on the requested letter’s rules and a 1.1-second hold. J/Z require a matching trajectory.
 - **Storage:** Progress and test results use browser localStorage. Typed names stay in tab memory.
 - **Privacy:** Camera frames are processed locally, never recorded or uploaded. Models and fonts load from external providers.
 

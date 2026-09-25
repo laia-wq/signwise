@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import {STATIC_IDS,features,assessHand,scoreFeatures,scoreMotionShape,MotionTracker} from '../dist/coach.js';
+import {STATIC_IDS,features,fingerExtension,assessFeatures,assessHand,scoreFeatures,scoreMotionShape,MotionTracker} from '../dist/coach.js';
 import {HoldGate,CameraTest} from '../dist/session.js';
 assert.equal(new Set([...STATIC_IDS,'J','Z']).size,27);
 assert.equal(assessHand(null,null,'L').score,0);
 // Distinctive shapes should be preferred over common lookalikes.
-const neutral={thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.75,.75,.75,.75],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
+const neutral={thumbIndexContact:1.3,thumbMiddleBase:.8,middleDown:-1,thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.75,.75,.75,.75],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
 const l={...neutral,ext:[1,0,0,0],thumb:-.4,thumbOut:1.1,thumbIndex:1.7};
 assert(scoreFeatures(l,'L').score>=88);assert(scoreFeatures(l,'D').score<88);assert(scoreFeatures(l,'ILY').score<88);
 const v={...neutral,ext:[1,1,0,0]};assert(scoreFeatures(v,'V').score>=88);assert(scoreFeatures(v,'U').score<88);
@@ -12,7 +12,7 @@ const u={...v,tipGap:.15};assert(scoreFeatures(u,'U').score>=88);assert(scoreFea
 const s={...neutral};assert(scoreFeatures(s,'S').score>=88);assert(scoreFeatures(s,'E').score<88);
 const h={...u,up:0,side:1,down:0};assert(scoreFeatures(h,'H').score>scoreFeatures(h,'U').score);
 const c={...neutral,ext:[.8,.8,.8,.8],thumbIndex:.7};assert(scoreFeatures(c,'C').score>=88);assert(scoreFeatures(c,'O').score<88);
-const o={...c,thumbIndex:.1};assert(scoreFeatures(o,'O').score>=88);assert(scoreFeatures(o,'C').score<88);
+const o={...c,thumbIndex:.1,thumbIndexContact:.1};assert(scoreFeatures(o,'O').score>=88);assert(scoreFeatures(o,'C').score<88);
 const f={...neutral,ext:[.6,1,1,1],thumbIndex:.1};assert(scoreFeatures(f,'F').score>=88);
 // User-reported thumb and round-shape regressions. Fixtures describe geometric
 // constraints, not measured signer data; they do not establish camera accuracy.
@@ -41,7 +41,7 @@ assert(scoreFeatures({...s,thumbContact:.8},'S').score<88);
 assert(scoreFeatures({...o,closure:1},'O').score<88,'Only index contact is not an O');
 assert(scoreFeatures({...c,roundSpread:.8},'C').score<88);
 assert(scoreFeatures({...c,roundness:[1,1,1,1]},'C').score<88,'Flat fingers are not rounded');
-assert(scoreFeatures({...o,thumbIndex:.65},'O').score<88);
+assert(scoreFeatures({...o,thumbIndex:.65,thumbIndexContact:.65},'O').score<88);
 assert(scoreFeatures({...c,thumbIndex:.05},'C').score<88);
 // Exercise feature extraction as well as handcrafted feature fixtures.
 const w=[{x:0,y:0,z:0},{x:-.6,y:.3,z:0},{x:-.8,y:.6,z:0},{x:-1.1,y:.8,z:0},{x:-1.4,y:1,z:0}];
@@ -93,7 +93,7 @@ const gg={...q,roundness:[1,.2,.2,.2],side:1,down:0,up:0};assert(scoreFeatures(g
 assert(scoreFeatures({...gg,thumbSide:0},'G').score<88);
 assert(scoreFeatures({...gg,thumbParallel:-.5},'G').score<88);
 assert(scoreFeatures({...o,roundness:[.4,.45,.48,.5]},'O').score>=88);
-assert(scoreFeatures({...o,pipAngles:[30,30,30,30]},'O').score<88);
+assert(scoreFeatures({...o,pipAngles:[15,15,15,15]},'O').score<88);
 assert(scoreFeatures({...o,roundness:[.15,.2,.2,.2]},'O').score<88);
 const zshape={...neutral,ext:[1,0,0,0],thumbMiddle:.8};
 assert(scoreMotionShape(zshape,'Z').score>=88,'Z does not require D thumb circle');
@@ -102,15 +102,97 @@ tracker.reset();let ready=tracker.update('J',{x:.5,y:.3},0,true);assert.equal(re
 tracker.update('J',{x:.5,y:.3},100,true);tracker.update('J',{x:.5,y:.3},200,true);
 assert.equal(tracker.update('J',{x:.5,y:.3},400,true).phase,'drawing');
 assert.equal(tracker.trail.length,1);
-assert.equal(tracker.update('J',{x:.5,y:.35},500,false).phase,'shape');assert.equal(tracker.trail.length,0);
+assert.equal(tracker.update('J',{x:.5,y:.35},500,false).phase,'paused');assert.equal(tracker.trail.length,1);assert.equal(tracker.update('J',{x:.5,y:.35},650,false).phase,'shape');assert.equal(tracker.trail.length,0);
 tracker.reset();arm(j,'J');j.forEach(([x,y],i)=>tracker.update('J',{x,y},i*120,true));
-assert.deepEqual(tracker.trail.at(-1),{x:j.at(-1)[0],y:j.at(-1)[1]},'Trail uses the exact scored fingertip coordinates');
+assert.deepEqual(tracker.trail.at(-1),{x:j[tracker.completedAt/120][0],y:j[tracker.completedAt/120][1]},'Trail freezes at the fingertip that completed the scored stroke');
 assert.equal(tracker.update('J',{x:.5,y:.4},2000,true).phase,'arming','Stale frames require rearming');
 console.log('Passed E/G/M/N/O/T geometry, Z starting pose, pen arming, trail coordinates, and interrupted strokes.');
 
-// Completion also needs a lead over other letters: a high target score alone is insufficient.
+// Completion uses the requested letter's rules, not incomparable rival scores.
 for(const [id,pose] of [['E',e],['G',gg],['O',o],...['T','N','M'].map((id,i)=>[id,{...tuckedT,thumbSlot:i+.5,ext:[.35,.35,.35,.35]}])]){
- const own=scoreFeatures(pose,id).score;
- const rival=Math.max(...STATIC_IDS.filter(other=>other!==id).map(other=>scoreFeatures(pose,other).score));
- assert(own>=88&&own-rival>=4,`${id} must be completable, not just display a high score (${own} vs ${rival})`);
+ const result=assessFeatures(pose,id);assert(result.match,`${id}: ${result.title}`);
+ const hold=new HoldGate(1100);let progress=0;
+ for(let t=0;t<=1200;t+=100)progress=hold.update(id,result.match,t);
+ assert.equal(progress,1,`${id} must complete`);
 }
+// Reproduce the actual 100%-but-ambiguous failure: E and S can both satisfy
+// their coarse estimates. A requested E must not be blocked by S's score.
+const tiedE={...e,ext:[0,0,0,0],thumbFront:.18,thumbCover:.15};
+assert.equal(scoreFeatures(tiedE,'E').score,100);assert.equal(scoreFeatures(tiedE,'S').score,100);
+assert.equal(assessFeatures(tiedE,'E').match,true);
+for(const [id,slot] of [['M',2.5],['N',1.5],['T',.5]]){
+ const pose={...tuckedT,thumbSlot:slot,eContact:.2,eHeight:.15};
+ assert.equal(scoreFeatures(pose,'E').score,100);
+ assert.equal(assessFeatures(pose,id).match,true);
+ assert.equal(assessFeatures({...pose,thumbSlot:NaN},id).match,false);
+}
+// Short finger geometry has the same curl as a long finger, regardless of its
+// distance from the wrist. Still reject a genuinely extended pinky in W/K/P.
+const curled=[{x:0,y:0,z:0},{x:0,y:1,z:0},{x:0,y:1.2,z:.65},{x:0,y:.7,z:.9}];
+const straight=[0,1,1.7,2.2].map(y=>({x:0,y,z:0}));
+const pinkyCurl=fingerExtension(curled);assert(pinkyCurl<=.4);
+assert(fingerExtension(straight)>.9);
+for(const scale of [.35,.7,1.4]){
+ const finger=curled.map(p=>({x:3+p.x*scale,y:2+p.y*scale,z:4+p.z*scale}));
+ assert(Math.abs(fingerExtension(finger)-pinkyCurl)<1e-8);
+}
+const k={...neutral,ext:[1,.65,0,pinkyCurl],thumbMiddleBase:.12,thumbMiddle:.5,up:.8,tipGap:.4};
+const pp={...k,up:0,down:0,side:1,middleDown:.8};
+for(const [id,pose] of [['K',k],['P',pp],['W',{...neutral,ext:[1,1,1,pinkyCurl]}]]){
+ assert(assessFeatures(pose,id).match,`${id} accepts a curled short pinky`);
+ assert(!assessFeatures({...pose,ext:[...pose.ext.slice(0,3),1]},id).match,`${id} rejects an extended pinky`);
+}
+assert(!assessFeatures({...k,thumbMiddleBase:.8},'K').match);
+assert(!assessFeatures({...pp,down:1,up:-1,middleDown:-.5},'P').match,'A downward index cannot substitute for a downward middle finger');
+assert(assessFeatures({...pp,down:1,up:-1,middleDown:1},'P').match,'Palm-down P is not rejected just because its index also angles down');
+assert(!assessFeatures({...pp,middleDown:-.8},'P').match);
+assert(assessFeatures({...o,thumbIndex:.38,thumbIndexContact:.16},'O').match,'Finger pad contact need not coincide with tip centers');
+assert(!assessFeatures({...o,thumbIndexContact:.7},'O').match);
+
+// Rounded J turns start curving BEFORE the lowest point. Both hands and a
+// short hook must work; a straight drop, L, reversed hook, loop or random
+// scribble must not. The same tracker supplies the practice and test UI.
+const roundedJ=[[.60,.30],[.601,.325],[.60,.35],[.594,.378],[.58,.400],[.56,.41],[.54,.405],[.529,.392]];
+const smallJ=[[.60,.30],[.60,.325],[.60,.35],[.59,.37],[.575,.375],[.56,.372],[.55,.362]];
+function traceJ(path,hand='Right',scale=.2,interval=100){
+ const track=new MotionTracker();
+ const transformed=path.map(([x,y])=>({x:.5+((hand==='Left'?1-x:x)-.5)*scale/.2,y:.5+(y-.5)*scale/.2}));
+ for(let t=-400;t<=0;t+=100)track.update('J',transformed[0],t,true,hand,scale);
+ let result;transformed.forEach((p,i)=>result=track.update('J',p,i*interval,true,hand,scale));
+ return {track,result};
+}
+for(const hand of ['Left','Right'])for(const scale of [.12,.2,.3])for(const path of [roundedJ,smallJ]){
+ const {track,result}=traceJ(path,hand,scale);assert(result.match,`${hand} rounded J at scale ${scale}`);
+ assert(track.trail.length>=5&&track.trail.length<=path.length);
+}
+for(const bad of [roundedJ.map(([x,y])=>[.6,y]),roundedJ.map(([x,y])=>[1.2-x,y]),[[.6,.3],[.6,.33],[.6,.36],[.6,.40],[.57,.40],[.54,.40],[.51,.4]],[[.6,.3],[.56,.33],[.6,.38],[.55,.4],[.6,.43],[.54,.45],[.53,.41]]])assert(!traceJ(bad).result.match);
+const rotating=new MotionTracker();for(let t=-400;t<=0;t+=100)rotating.update('J',{x:roundedJ[0][0],y:roundedJ[0][1]},t,true);
+roundedJ.forEach(([x,y],i)=>res=rotating.update('J',{x,y},i*100,true,'Right',.2-i*.012));assert(res.match,'Natural rotation may foreshorten the projected palm');
+const interruptedJ=new MotionTracker();for(let t=-400;t<=0;t+=100)interruptedJ.update('J',{x:.6,y:.3},t,true);
+interruptedJ.update('J',{x:.6,y:.33},100,true);const savedTrail=interruptedJ.trail;
+assert.equal(interruptedJ.update('J',{x:.4,y:.7},200,false).match,false);assert.deepEqual(interruptedJ.trail,savedTrail,'Uncertain frames do not add ink');
+assert.equal(interruptedJ.update('J',{x:.4,y:.7},300,false).phase,'shape');assert.equal(interruptedJ.trail.length,0);
+console.log('Passed target completion, finger-length invariance, K/P orientation, O pad contact, and rounded J acceptance/rejection.');
+// End-to-end synthetic landmark sequence: extract a J handshape on every
+// frame, feed the same assessment into MotionTracker, then award a timed test.
+// This is a deterministic geometry fixture, not a measured signer accuracy test.
+const jWorld=[{x:0,y:0,z:0},{x:-.8,y:.35,z:0},{x:-.7,y:.7,z:0},{x:-.1,y:1.1,z:.35},{x:.3,y:1.35,z:.4}];
+for(const x of [-.6,-.2,.2])jWorld.push({x,y:1,z:0},{x,y:1.45,z:0},{x,y:1.5,z:.35},{x,y:1.2,z:.55});
+for(let n=0;n<4;n++)jWorld.push({x:.6,y:1+n*.35,z:0});
+for(const hand of ['Right','Left']){
+ const shape=jWorld.map(p=>({x:p.x*.06*(hand==='Left'?-1:1),y:-p.y*.06,z:p.z*.06}));
+ const base=jWorld.map(p=>({x:.5+p.x*.13*(hand==='Left'?-1:1),y:.7-p.y*.13,z:p.z*.13}));
+ const frames=roundedJ.map(([x,y])=>base.map(p=>({...p,x:p.x-base[20].x+(hand==='Left'?1-x:x),y:p.y-base[20].y+y})));
+ const m=new MotionTracker(),quiz=new CameraTest(['J'],20);quiz.start(0);
+ const initial=assessHand(frames[0],shape,'J');assert(initial.match,initial.title);
+ for(let t=-400;t<=0;t+=100)m.update('J',frames[0][20],t,initial.match,hand,.2);
+ let accepted=false;
+ frames.forEach((points,i)=>{
+  const verdict=assessHand(points,shape,'J');assert(verdict.match,verdict.title);
+  const result=m.update('J',points[20],i*100,verdict.match,hand,.2);
+  if(result.match){accepted=true;quiz.resolve(true,100,'Matched by camera');}
+ });
+ assert(accepted,`${hand} J must complete through landmark extraction and scoring`);
+ assert.equal(quiz.total,1);assert.equal(quiz.results.length,1);
+}
+console.log('Passed synthetic raw-landmark J completion for both hands through timed-test scoring.');
