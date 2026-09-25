@@ -1,10 +1,45 @@
-import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=9';
-import {lessons} from './lessons.js?v=9';
-import {assessHand,MotionTracker} from './coach.js?v=9';
-import {HoldGate,CameraTest} from './session.js?v=9';
+import {TrackingReport} from './diagnostics.js?v=10';
+import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=10';
+import {lessons} from './lessons.js?v=10';
+import {assessHand,MotionTracker} from './coach.js?v=10';
+import {HoldGate,CameraTest} from './session.js?v=10';
 const $=id=>document.getElementById(id),video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
 let selected=0,completed=new Set(),active=false,stream=null,detector=null,detectorPromise=null,requestId=0,raf=0,lastFrame=-1,lastRun=0,lastFeedback='',test=null,testInterval=null,countdownUntil=0,scorePeak=0,lastHand=null,beginPending=false;
 const hold=new HoldGate(1100),motion=new MotionTracker(),setup=new SetupGate();
+const report=new TrackingReport();let captureTimer=null;
+function finishCapture(reason='capture finished'){
+ clearTimeout(captureTimer);captureTimer=null;report.stop(reason);
+ $('capture-status').textContent=report.frames.length?`Captured ${report.frames.length} tracking samples. Download the report to share it, or discard it.`:'No tracking samples captured. Enable the camera and try again.';
+ $('capture-download').disabled=!report.frames.length;$('capture-start').disabled=false;
+}
+$('capture-start').onclick=()=>{
+ if(!active){$('capture-status').textContent='Enable the camera first, then start a capture.';return;}
+ if(test&&test.state!=='done'){ $('capture-status').textContent='End the test and capture the letter in practice.';return;}
+ report.start(lessons[selected].id,performance.now());$('capture-download').disabled=true;$('capture-start').disabled=true;
+ $('capture-status').textContent='Capturing for 5 seconds. Make the selected letter, or draw J.';
+ captureTimer=setTimeout(()=>finishCapture(),5000);
+};
+$('capture-discard').onclick=()=>{clearTimeout(captureTimer);captureTimer=null;report.clear();$('capture-download').disabled=true;$('capture-start').disabled=false;$('capture-status').textContent='Report discarded. Nothing was uploaded.';};
+$('capture-download').onclick=()=>{
+ if(report.recording||!report.frames.length)return;
+ const url=URL.createObjectURL(new Blob([JSON.stringify(report.export())],{type:'application/json'}));
+ const a=document.createElement('a');a.href=url;a.download=`signwise-${report.letter}-tracking.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+function updateDiagnostics(r,now){
+ if(!$('tracking-details').open&&!report.recording)return;
+ const result=r.landmarks.length===1?assessHand(r.landmarks[0],r.worldLandmarks?.[0],lessons[selected].id):null;
+ if($('tracking-details').open){
+  const f=result?.features;
+  $('tracking-live').textContent=f?['index','middle','ring','pinky'].map((name,i)=>`${name}: ${(f.folded?.[i]??f.ext[i])<=.4?'folded estimate':f.ext[i]>=.8?'extended estimate':'partly bent estimate'}`).join(' · '):'No usable hand geometry. Try turning slightly so the fingertips are visible.';
+  const checks=result?.checks?.filter(c=>c.fit<.95).sort((a,b)=>a.fit-b.fit).slice(0,3)||[];
+  $('tracking-rules').textContent=checks.length?'Checks not met: '+checks.map(c=>c.hint).join(' '):result?.valid?'Handshape checks met. '+$('hold-label').textContent:'Waiting for a clear hand.';
+ }
+ if(report.recording){
+  if(report.letter!==lessons[selected].id){finishCapture('letter changed');return;}
+  report.push(now,{landmarks:r.landmarks,worldLandmarks:r.worldLandmarks,handedness:r.handedness,score:result?.score,match:result?.match,valid:result?.valid,features:result?.features,checks:result?.checks,status:$('hold-label').textContent,motion:{armed:motion.armed,direction:motion.direction,samples:motion.samples,completed:motion.completedAt!==null}});
+  if(!report.recording)finishCapture();
+ }
+}
 let sequence=null,missed=[],setupReady=false,waitingStart=false;
 try{missed=missedLetters(JSON.parse(localStorage.getItem('signwise-camera-test-v1')||'null')?.results);}catch{}
 function renderSequence(){
@@ -50,6 +85,9 @@ function drawHand(p,good,correction=null){
  line([0,5,9,13,17,0],good?'#80e5bd':'#b9a6ff',3);
  digits.forEach((chain,i)=>{line(chain,good?'#80e5bd':highlight.has(i)?'#ffc14d':'#b9a6ff',highlight.has(i)?7:3);if(highlight.has(i)){const q=p[chain.at(-1)];ctx.beginPath();ctx.arc(q.x*canvas.width,q.y*canvas.height,10,0,Math.PI*2);ctx.strokeStyle='#ffc14d';ctx.lineWidth=3;ctx.stroke();}});
  ctx.fillStyle='#fff';for(const q of p){ctx.beginPath();ctx.arc(q.x*canvas.width,q.y*canvas.height,3,0,Math.PI*2);ctx.fill();}
+ if($('tracking-details').open){
+  ['Thumb','Index','Middle','Ring','Pinky'].forEach((name,i)=>{const q=p[[4,8,12,16,20][i]];ctx.save();ctx.translate(q.x*canvas.width,q.y*canvas.height-13);ctx.scale(-1,1);ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#141226';ctx.strokeText(name,0,0);ctx.fillStyle='#fff';ctx.fillText(name,0,0);ctx.restore();});
+ }
  $('overlay-key').hidden=!highlight.size;
 }
 function drawMotion(good){
@@ -84,7 +122,7 @@ function processFrame(r,now){
  let score=result.score,matched=false,progress=0;
  let movement=null;
  if(l.motion){
-  movement=motion.update(l.id,r.landmarks[0][l.id==='J'?20:8],now,result.valid&&result.match,handed,result.features?.screenPalm);
+  movement=motion.update(l.id,r.landmarks[0][l.id==='J'?20:8],now,result.valid&&result.match,handed,result.features?.screenPalm,result.features?.hookDirection);
   score=Math.round(result.score*.45+movement.score*.55);matched=movement.match&&result.match;progress=movement.phase==='arming'?movement.ready*.2:movement.score/100;
   const digit=l.id==='J'?'Pinky':'Index';
   $('hold-label').textContent=matched?'Movement matched':movement.phase==='shape'?'Pen off · show the starting handshape':movement.phase==='arming'?'Hold still · getting the pen ready':movement.phase==='paused'?'Pen paused · bring the handshape back into view':movement.phase==='retry'?'Stroke cleared · hold the starting shape again':`${digit} pen on · ${movement.score===0?'start your stroke':movement.score===35?(l.id==='J'?'downstroke seen · curve toward your thumb':'top stroke seen'):movement.score===65?'finish the bottom stroke':'downstroke seen · finish the hook'}`;
@@ -97,8 +135,8 @@ function processFrame(r,now){
  else if(test?.state==='running')feedback(`Make ${l.id} from memory.`,l.motion?'The handshape and motion both count.':'Keep trying until the timer ends. Hints return after the attempt.');
  else feedback(l.motion&&result.match?$('hold-label').textContent:result.title,l.motion&&result.match?'The bright trail shows the fingertip movement being scored. Use Clear stroke to try again.':result.detail);
 }
-function tick(now){if(!active)return;try{if(video.readyState>=2&&video.currentTime!==lastFrame&&now-lastRun>85){lastRun=now;lastFrame=video.currentTime;const r=detector.detectForVideo(video,now);if(canvas.width!==video.videoWidth||canvas.height!==video.videoHeight){canvas.width=video.videoWidth;canvas.height=video.videoHeight;}processFrame(r,now);}raf=requestAnimationFrame(tick);}catch(e){stopCamera(false);feedback('The camera coach paused.','Restart the camera to try again. Your active test is paused.');}}
-function stopCamera(announce=true){requestId++;active=false;cancelAnimationFrame(raf);if(test?.state==='running')test.pause(performance.now());countdownUntil=0;waitingStart=false;resetSetup();$('overlay-key').hidden=true;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('camera').classList.remove('live');$('camera-empty').hidden=false;$('stop').hidden=true;$('start').disabled=false;$('start').textContent='Enable camera ↗';$('camera-badge').textContent='CAMERA OFF';resetTracking();renderTest();if(announce)feedback('Camera is off.',test?.state==='paused'?'Your test is paused. Enable the camera, then resume.':'Enable it again when you’re ready.');}
+function tick(now){if(!active)return;try{if(video.readyState>=2&&video.currentTime!==lastFrame&&now-lastRun>85){lastRun=now;lastFrame=video.currentTime;const r=detector.detectForVideo(video,now);if(canvas.width!==video.videoWidth||canvas.height!==video.videoHeight){canvas.width=video.videoWidth;canvas.height=video.videoHeight;}processFrame(r,now);updateDiagnostics(r,now);}raf=requestAnimationFrame(tick);}catch(e){stopCamera(false);feedback('The camera coach paused.','Restart the camera to try again. Your active test is paused.');}}
+function stopCamera(announce=true){if(report.recording)finishCapture('camera stopped');requestId++;active=false;cancelAnimationFrame(raf);if(test?.state==='running')test.pause(performance.now());countdownUntil=0;waitingStart=false;resetSetup();$('overlay-key').hidden=true;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;ctx.clearRect(0,0,canvas.width,canvas.height);$('camera').classList.remove('live');$('camera-empty').hidden=false;$('stop').hidden=true;$('start').disabled=false;$('start').textContent='Enable camera ↗';$('camera-badge').textContent='CAMERA OFF';resetTracking();renderTest();if(announce)feedback('Camera is off.',test?.state==='paused'?'Your test is paused. Enable the camera, then resume.':'Enable it again when you’re ready.');}
 async function loadDetector(){if(detector)return detector;if(!detectorPromise)detectorPromise=(async()=>{const {HandLandmarker,FilesetResolver}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/vision_bundle.mjs');const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm');return HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numHands:2,minHandDetectionConfidence:.55,minHandPresenceConfidence:.55,minTrackingConfidence:.55});})().then(d=>detector=d).catch(e=>{detectorPromise=null;throw e;});return detectorPromise;}
 async function startCamera(){if(active)return true;const current=++requestId;$('start').disabled=true;$('start').textContent='Starting camera…';feedback('Getting your camera ready.','Allow camera access. The model downloads once; no video is uploaded.');try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('Unsupported browser');const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480}}});if(current!==requestId){media.getTracks().forEach(t=>t.stop());return false;}stream=media;$('stop').hidden=false;await loadDetector();if(current!==requestId)return false;video.srcObject=stream;await video.play();if(current!==requestId)return false;active=true;lastFrame=-1;lastRun=0;resetTracking();resetSetup();$('camera').classList.add('live');$('camera-empty').hidden=true;$('camera-badge').textContent='CAMERA ON';stream.getVideoTracks()[0].addEventListener('ended',()=>{if(active)stopCamera();});raf=requestAnimationFrame(tick);renderTest();return true;}catch(e){if(current!==requestId)return false;stopCamera(false);feedback(e.name==='NotAllowedError'?'Camera access was not allowed.':'We could not start the camera.',e.name==='NotAllowedError'?'Allow camera access in your browser settings and try again.':e.name==='NotFoundError'?'Connect a camera and try again.':'Check your connection and camera availability, then try again. The hand-tracking model must finish loading.');return false;}}
 $('start').onclick=startCamera;$('stop').onclick=()=>stopCamera();
@@ -111,6 +149,7 @@ function onTestReview(correct){countdownUntil=0;resetTracking();render();const c
 function finishTest(){missed=missedLetters(test.results);$('retry-actions').hidden=!missed.length;$('retry-summary').textContent=`Review ${missed.length} missed ${missed.length===1?'letter':'letters'} with hints, then try again.`;clearInterval(testInterval);testInterval=null;document.body.classList.remove('testing','test-review');const total=test.total,n=test.ids.length;$('test-final-score').textContent=`${total} / ${n} · ${Math.round(total/n*100)}%`;$('test-results').replaceChildren();for(const r of test.results){const row=document.createElement('li');row.textContent=`${r.letter}: ${r.correct?'Correct':'Incorrect (timed out)'}`;$('test-results').append(row);}try{localStorage.setItem('signwise-camera-test-v1',JSON.stringify({correct:total,total:n,results:test.results,date:new Date().toISOString()}));}catch{}render();feedback('Test complete.',`${total} of ${n} letters matched before the time limit.`,true);$('test-finish').scrollIntoView({behavior:'smooth',block:'center'});}
 function endTest(){clearInterval(testInterval);testInterval=null;test=null;countdownUntil=0;waitingStart=false;resetTracking();render();feedback('Test ended.','Incomplete tests are not saved as a final score. Matched letters remain completed.');}
 async function startTest(ids=null){
+ if(report.recording)finishCapture('test started');
  sequence=null;clearInterval(testInterval);waitingStart=false;countdownUntil=0;
  const count=Number($('test-count').value),seconds=Number($('test-seconds').value);
  test=new CameraTest(ids||Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ'),seconds);if(!ids)test.ids=test.ids.slice(0,count);

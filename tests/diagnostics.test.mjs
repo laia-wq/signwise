@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {TrackingReport} from '../dist/diagnostics.js';
+const r=new TrackingReport();r.push(0,{score:1});assert.equal(r.frames.length,0);
+r.start('J',100);const landmarks=[[{x:.1,y:.2,z:.3}]];
+r.push(200,{landmarks,score:20,video:'must not be included',name:'must not be included'});
+landmarks[0][0].x=.9;assert.equal(r.frames[0].landmarks[0][0].x,.1);
+assert(!JSON.stringify(r.export()).includes('must not'));
+r.push(5100,{score:30});assert(!r.recording);assert.equal(r.frames.length,1);
+r.start('K',6000);assert.equal(r.frames.length,0);assert.equal(r.letter,'K');
+for(let i=0;i<80;i++)r.push(6000+i,{score:i});assert.equal(r.frames.length,65);assert(!r.recording);
+r.clear();assert.equal(r.frames.length,0);assert.equal(r.started,null);assert.equal(r.letter,null);
+console.log('Passed opt-in-only reports, bounded capture, field allowlist, copies and discard.');

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Experimental browser-only ASL alphabet practice",
   "scripts": {
-    "test": "node tests/camera.test.mjs && node tests/practice.test.mjs",
+    "test": "node tests/camera.test.mjs && node tests/practice.test.mjs && node tests/diagnostics.test.mjs",
     "preview": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist"
   },
   "engines": { "node": ">=22" }

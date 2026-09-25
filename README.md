@@ -19,6 +19,7 @@ Browser-based ASL alphabet practice with experimental camera feedback.
 - Take randomized timed tests with hidden hints, automatic timeout scoring, and focused practice for missed letters.
 - Pause tests when the camera stops or the tab is hidden, preserving the remaining attempt time.
 - Check hand visibility, framing, size, and stability before camera scoring begins.
+- Optionally label tracked fingertips and export a five-second, local-only geometry report to investigate missed matches.
 - Process video entirely in your browser and save progress locally without uploading camera frames.
 
 ## Run locally

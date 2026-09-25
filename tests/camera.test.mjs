@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {STATIC_IDS,features,fingerExtension,assessFeatures,assessHand,scoreFeatures,scoreMotionShape,MotionTracker} from '../dist/coach.js';
+import {STATIC_IDS,features,fingerExtension,foldedExtension,assessFeatures,assessHand,scoreFeatures,scoreMotionShape,MotionTracker} from '../dist/coach.js';
 import {HoldGate,CameraTest} from '../dist/session.js';
 assert.equal(new Set([...STATIC_IDS,'J','Z']).size,27);
 assert.equal(assessHand(null,null,'L').score,0);
@@ -196,3 +196,34 @@ for(const hand of ['Right','Left']){
  assert.equal(quiz.total,1);assert.equal(quiz.results.length,1);
 }
 console.log('Passed synthetic raw-landmark J completion for both hands through timed-test scoring.');
+
+// Base-knuckle folding used to fail because the distal joints stayed straight.
+const baseFold=[{x:.6,y:1,z:0},{x:.6,y:.7,z:.1},{x:.6,y:.45,z:.18},{x:.6,y:.25,z:.24}];
+assert(fingerExtension(baseFold)>.8);
+assert(foldedExtension(baseFold,{x:0,y:0,z:0})<.4);
+assert(foldedExtension(straight,{x:0,y:-1,z:0})>.8,'A raised straight finger stays extended');
+const foldedWorld=jWorld.map(p=>({...p}));
+for(const b of [5,9])for(let n=0;n<4;n++)foldedWorld[b+n]={x:foldedWorld[b].x,y:1+n*.35,z:0};
+for(const b of [13,17])baseFold.forEach((p,n)=>foldedWorld[b+n]={...p,x:foldedWorld[b].x});
+foldedWorld[4]={x:-.2,y:1.1,z:.05};
+const toWorld=ps=>ps.map(p=>({x:p.x*.06,y:-p.y*.06,z:p.z*.06}));
+const toScreen=ps=>ps.map(p=>({x:.5+p.x*.13,y:.7-p.y*.13,z:p.z*.13}));
+const foldedK=assessHand(toScreen(foldedWorld),toWorld(foldedWorld),'K');
+assert(foldedK.features.ext[3]>.8,'Old last-joint check calls the folded pinky straight');
+assert(foldedK.match,foldedK.title);
+// A tall, narrow hand is valid. World-space geometry is not discarded merely
+// because the hand is turned sideways in the video.
+const narrow=toScreen(foldedWorld).map(p=>({...p,x:.5+(p.x-.5)*.2}));
+assert(features(narrow,toWorld(foldedWorld)),'Side profile must reach the scorer');
+const tiny=narrow.map(p=>({...p,y:.5+(p.y-.5)*.1}));assert.equal(features(tiny,toWorld(foldedWorld)),null);
+// J follows the observed thumb side, independently of the detector's label.
+for(const label of ['Right','Left'])for(const direction of [-1,1]){
+ const m=new MotionTracker();const path=roundedJ.map(([x,y])=>({x:direction===-1?x:1-x,y}));
+ for(let t=-400;t<=0;t+=100)m.update('J',path[0],t,true,label,.2,direction);
+ let result;path.forEach((p,i)=>result=m.update('J',p,i*100,true,label,.2,direction));
+ assert(result.match,`Observed thumb direction ${direction} with ${label} label`);
+ const expected=path[m.completedAt/100];assert.deepEqual(m.trail.at(-1),expected,'Visible ink and scoring use the same direction');
+ const wrong=new MotionTracker();for(let t=-400;t<=0;t+=100)wrong.update('J',path[0],t,true,label,.2,-direction);
+ path.forEach((p,i)=>result=wrong.update('J',p,i*100,true,label,.2,-direction));assert(!result.match,'Hook away from the observed thumb is rejected');
+}
+console.log('Passed base-knuckle folded K landmarks, narrow profiles, and observed J hook direction.');

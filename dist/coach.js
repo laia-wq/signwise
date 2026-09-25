@@ -17,14 +17,23 @@ export function fingerExtension([mcp,pip,dip,tip]){
  const reach=dist(mcp,tip)/length;
  return .8*clamp((joint-70)/95)+.2*clamp((reach-.45)/.45);
 }
+// Joint straightness and palm-relative folding answer different questions.
+// A finger may fold back at the base knuckle while its last joints stay straight.
+export function foldedExtension(finger,wrist){
+ const straightness=fingerExtension(finger);
+ const direction=dot(unit(sub(finger[3],finger[0])),unit(sub(finger[0],wrist)));
+ return Math.min(straightness,clamp((direction+.3)/.45));
+}
 export function features(points,w){
  if(!points||!w||points.length!==21||w.length!==21||[...points,...w].some(p=>!Number.isFinite(p.x+p.y+p.z)))return null;
  if(points.some(p=>p.x<.015||p.x>.985||p.y<.015||p.y>.985))return null;
  const span=Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x));
- const palm=dist(w[0],w[9]);if(palm<.015||span<.10)return null;
+ const height=Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y));
+ const palm=dist(w[0],w[9]);if(palm<.015||Math.max(span,height)<.10)return null;
  // Use the finger's own joints and bone lengths. Wrist-distance ratios biased
  // short pinkies and changed with knuckle flexion, even for the same curl.
  const ext=[5,9,13,17].map(b=>fingerExtension(w.slice(b,b+4)));
+ const folded=[5,9,13,17].map(b=>foldedExtension(w.slice(b,b+4),w[0]));
 
  const axis={x:w[17].x-w[5].x,y:w[17].y-w[5].y,z:w[17].z-w[5].z};const width2=axis.x**2+axis.y**2+axis.z**2;
  if(width2<1e-6)return null;
@@ -49,7 +58,7 @@ export function features(points,w){
  const tipToThumb=[8,12,16,20].map(i=>Math.min(segmentDistance(w[i],w[2],w[3]),segmentDistance(w[i],w[3],w[4]))/palm);
  const pipAngles=[5,9,13,17].map(b=>angle(w[b],w[b+1],w[b+2]));
  const dipAngles=[5,9,13,17].map(b=>angle(w[b+1],w[b+2],w[b+3]));
- return {thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
+ return {folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
   eContact:Math.max(...tipToThumb.slice(0,3)),
   eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
   localCover:[6,10,14].map(i=>depth(w[3])-depth(w[i])),
@@ -75,7 +84,7 @@ export function scoreFeatures(f,id){
   if(id==='C'||id==='O'||id==='E')return; // Use whole-finger curvature, not straight/curl targets.
   const fit=id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):
    (id==='K'||id==='P')&&i===1?range(f.ext[i],.5,1,.3):
-   x===1?range(f.ext[i],.80,1,.30):x===0?range(f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
+   x===1?range(f.ext[i],.80,1,.30):x===0?range(f.folded?.[i]??f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
   add(fit,`${x===1?'Extend':x===0?'Curl':'Curve'} your ${['index','middle','ring','pinky'][i]} finger.`,true,[i+1]);
  });
  const upright=()=>required(f.up,.55,1,'Point the raised fingers upward.',.4);
@@ -148,13 +157,13 @@ export function scoreFeatures(f,id){
  // Explicit finger IDs for extension rules; remaining hints identify involved digits.
  const named=['thumb','index','middle','ring','pinky'].flatMap((name,i)=>correction.hint.toLowerCase().includes(name)?[i]:[]);
  const fingers=correction.fingers.length?correction.fingers:named.length?named:[1,2,3,4];
- return {score:failed?Math.min(84,raw):raw,hint:correction.hint,correction:correction.fit<.95?{fingers,message:correction.hint}:null};
+ return {checks:rules.map(({fit,hint,critical,fingers})=>({fit,hint,critical,fingers})),score:failed?Math.min(84,raw):raw,hint:correction.hint,correction:correction.fit<.95?{fingers,message:correction.hint}:null};
 }
 export function assessHand(points,world,id){
  const f=features(points,world);if(!f)return {score:0,match:false,valid:false,title:'Show one whole hand clearly.',detail:'Keep every fingertip in view, move closer, and use even lighting.'};
  if(id==='J'||id==='Z'){
   const own=scoreMotionShape(f,id);
-  return {score:own.score,match:own.score>=88,valid:true,features:f,correction:own.correction,title:own.score>=88?'Starting shape ready.':own.hint,detail:'Keep this handshape while tracing the movement.'};
+  return {score:own.score,match:own.score>=88,valid:true,features:f,checks:own.checks,correction:own.correction,title:own.score>=88?'Starting shape ready.':own.hint,detail:'Keep this handshape while tracing the movement.'};
  }
  return assessFeatures(f,id);
 }
@@ -179,9 +188,9 @@ const cleanStroke=ps=>{
 };
 export class MotionTracker{
  constructor(){this.reset();}
- reset(){this.samples=[];this.id=null;this.last=0;this.hand=null;this.scale=null;this.origin=null;this.armed=false;this.readySince=null;this.anchor=null;this.completedAt=null;this.lastGood=null;}
- get trail(){return !this.origin||!this.scale?[]:this.samples.map(p=>({x:this.origin.x+p.x*this.scale/.2*(this.hand==='Left'?1:-1),y:this.origin.y+p.y*this.scale/.2}));}
- update(id,point,now,shapeOK,hand='Right',palmScale=.2){
+ reset(){this.samples=[];this.id=null;this.last=0;this.hand=null;this.scale=null;this.origin=null;this.armed=false;this.readySince=null;this.anchor=null;this.completedAt=null;this.lastGood=null;this.direction=null;}
+ get trail(){return !this.origin||!this.scale?[]:this.samples.map(p=>({x:this.origin.x+p.x*this.scale/.2*(this.direction??(this.hand==='Left'?1:-1)),y:this.origin.y+p.y*this.scale/.2}));}
+ update(id,point,now,shapeOK,hand='Right',palmScale=.2,hookDirection=0){
   const interrupted=this.id!==id||this.hand!==hand||now-this.last>350||this.scale&&Math.abs(palmScale/this.scale-1)>(id==='J'?.55:.35);
   // A single uncertain J frame pauses the pen, without drawing or granting a
   // match. Sustained loss clears it. Rotation can briefly occlude fingertips.
@@ -200,6 +209,7 @@ export class MotionTracker{
   if(!this.armed){
    if(!this.anchor||Math.hypot(point.x-this.anchor.x,point.y-this.anchor.y)>palmScale*.12){this.anchor={...point};this.readySince=now;}
    if(now-this.readySince<350)return {score:0,match:false,phase:'arming',ready:(now-this.readySince)/350};
+   this.direction=id==='J'&&Math.abs(hookDirection)===1?hookDirection:(hand==='Left'?1:-1);
    this.armed=true;
   }
   const result=this.track(id,point,now,true,hand,palmScale);
@@ -212,7 +222,7 @@ export class MotionTracker{
   this.last=now;
   if(!shapeOK||!point||!Number.isFinite(point.x+point.y)||!(palmScale>.04)){this.samples=[];this.origin=null;this.scale=null;return {score:0,match:false};}
   if(!this.origin){this.origin=point;this.scale=palmScale;}
-  const x=(point.x-this.origin.x)*(hand==='Left'?1:-1)*.2/this.scale,y=(point.y-this.origin.y)*.2/this.scale;
+  const x=(point.x-this.origin.x)*(this.direction??(hand==='Left'?1:-1))*.2/this.scale,y=(point.y-this.origin.y)*.2/this.scale;
   const prev=this.samples.at(-1);
   // Reject tracking jumps instead of accepting them as completed strokes.
   if(prev&&Math.hypot(x-prev.x,y-prev.y)>.12){this.samples=[];this.origin=null;this.scale=null;return {score:0,match:false};}
