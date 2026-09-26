@@ -14,9 +14,9 @@ function boot(saved=new Map()){
  return {nodes,saved,run:code=>vm.runInContext(code,ctx)};
 }
 const app=boot();assert.equal(app.nodes.count.textContent,'—');
-function finish(correct,n=26){app.run(`test=new CameraTest([...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].slice(0,${n}),20,()=>.5);for(let i=0;i<${n};i++){test.start(i*30000);if(i<${correct})test.resolve(true,100,'match');else test.tick(i*30000+20000);test.next();}finishTest();`);}
-finish(24);assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,false);assert.equal(app.nodes['test-results'].children.length,26);
-finish(5,5);assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,true);assert.match(app.nodes['test-reflection'].textContent,/shorter test/);
+function finish(correct,n=26){app.run(`test=new CameraTest([...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].slice(0,${n}),20,()=>.5);for(let i=0;i<${n};i++){test.start(i*30000);if(i<${correct})test.resolve(true,100,'match');else test.tick(i*30000+20000);onTestReview(i<${correct});if(test.state!=='done')test.next();}`);}
+finish(24);assert.equal(app.run('test.state'),'done');assert(app.saved.has('signwise-camera-test-v1'));assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,false);assert.equal(app.nodes['test-results'].children.length,26);
+finish(5,5);assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,true);assert.equal(app.nodes['result-headline'].textContent,'100%??? perfect!');
 const reopened=boot(app.saved);assert.equal(reopened.nodes.count.textContent,'24 / 26');
 finish(23);assert.equal(app.nodes.count.textContent,'24 / 26');assert(app.nodes['learning-next'].hidden);
 app.run("test=new CameraTest(['A','B'],20,()=>.9);test.start(0);test.resolve(true,100,'match');onTestReview(true)");assert.equal(app.nodes['test-outcome'].textContent,'A: correct ✓');

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {bestAlphabetResult,fullAlphabetResult,nextStepEligible} from '../dist/progress.js';
+import {bestAlphabetResult,fullAlphabetResult,nextStepEligible,resultCelebration} from '../dist/progress.js';
 import {CameraTest} from '../dist/session.js';
 const make=(correct,n=26,seconds=20)=>({correct,total:n,seconds,date:'2026-09-26T00:00:00Z',results:[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].slice(0,n).map((letter,i)=>({letter,correct:i<correct}))});
 const full=make(24);assert(fullAlphabetResult(full));assert(nextStepEligible(full));assert(!nextStepEligible(make(23)));assert(!nextStepEligible(make(5,5)));
@@ -12,3 +12,5 @@ for(const correct of [true,false]){
  assert.equal(t.state,'done');assert.equal(t.total,correct?26:0);assert.equal(new Set(t.results.map(r=>r.letter)).size,26);
 }
 console.log('Passed full-alphabet results, all-correct/all-timeout tests, best-score persistence rules, and next-step thresholds.');
+
+assert.equal(resultCelebration(26,26).headline,'100%??? perfect!');assert.equal(resultCelebration(25,26).headline,'96%?? you did great!');assert.equal(resultCelebration(20,26).tier,'progress');assert.equal(resultCelebration(3,26).tier,'practice');

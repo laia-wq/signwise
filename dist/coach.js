@@ -67,6 +67,7 @@ export function features(points,w){
  const imageThumbContact=dist(points[4],points[8])/imagePalm;
  const imageClosure=Math.max(...[8,12,16,20].map(i=>dist(points[4],points[i])/imagePalm));
  return {imageIndexTurn,imageThumbContact,imageClosure,pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
+  eIndexLift:(dot(sub(w[8],w[0]),longitudinal)-Math.max(...[12,16].map(i=>dot(sub(w[i],w[0]),longitudinal))))/palm,
   eContact:Math.max(...tipToThumb.slice(0,3)),
   eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
   localCover:[6,10,14].map(i=>depth(w[3])-depth(w[i])),
@@ -93,7 +94,7 @@ export function scoreFeatures(f,id){
   const supportedPinky=id==='W'&&i===3&&f.pinkyTurn<-.45&&f.thumbPinkyContact<.25&&(f.folded?.[3]??f.ext[3])<.8;
   const fit=supportedPinky?1:id==='F'&&i===0?range(f.ext[i],0,.70,.35):id==='D'&&i>0?range(f.ext[i],0,.60,.35):
    (id==='K'||id==='P')&&i===1?range(f.ext[i],.5,1,.3):
-   x===1?range(f.ext[i],.80,1,.30):x===0?range(f.folded?.[i]??f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
+   x===1?range(f.ext[i],id==='Y'&&i===3?.68:.80,1,.30):x===0?range(f.folded?.[i]??f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
   add(fit,`${x===1?'Extend':x===0?'Curl':'Curve'} your ${['index','middle','ring','pinky'][i]} finger.`,true,[i+1]);
  });
  const upright=()=>required(f.up,.55,1,'Point the raised fingers upward.',.4);
@@ -118,6 +119,7 @@ export function scoreFeatures(f,id){
  case 'C':round();required(f.thumbIndex,.38,1.05,'Leave an open C-shaped gap between thumb and fingertips.',.22);break;
  case 'D':add(range(f.thumbMiddle,0,.45,.4),'Touch your thumb to the curled fingers.');add(range(f.thumbIndex,.8,2,.5),'Keep the index separate from the thumb.');upright();break;
  case 'E':
+  required(f.eIndexLift,-1,.24,'Lower your curled index fingertip alongside the other fingertips; do not leave an X-shaped hook raised.',.2);
   (f.dipAngles||[NaN]).forEach(v=>required(v,35,145,'Bend the last joints so your fingertips curl down toward the thumb.',30));
   required(f.eContact,0,.38,'Bring the curled fingertips toward the top of your thumb.',.25);
   required(f.eHeight,-.08,.55,'Keep your thumb underneath the curled fingertips, not across their front.',.2);
@@ -163,7 +165,12 @@ export function scoreFeatures(f,id){
  case 'V':spread();thumbIn();upright();break;
  case 'W':spread();add(range(f.ringGap,.27,1.1,.3),'Spread your ring finger away from the middle finger.');thumbIn(f.thumbPinkyContact);upright();break;
  case 'X':thumbIn();add(range(f.thumbIndex,.45,1.2,.3),'Make a hook with your index finger.');break;
- case 'Y':case 'ILY':thumbExtended();add(range(f.thumbOut,.8,1.8,.5),'Extend your thumb out to the side.');break;
+ case 'Y':
+  required(f.thumbStraight,125,180,'Extend your thumb comfortably; avoid folding it into the palm.',30);
+  required(f.thumbSpread,40,180,'Open your thumb away from the palm.',25);
+  required(f.thumb,-1.8,-.06,'Let your thumb extend to the side.',.20);
+  required(f.thumbOut,.60,1.8,'Let your thumb open naturally away from your fist.',.3);break;
+ case 'ILY':thumbExtended();add(range(f.thumbOut,.8,1.8,.5),'Extend your thumb out to the side.');break;
  }
  const worst=rules.reduce((a,b)=>a.fit<b.fit?a:b),mean=rules.reduce((sum,r)=>sum+r.fit,0)/rules.length;
  const failed=rules.filter(r=>r.critical&&r.fit<.72).sort((a,b)=>a.fit-b.fit)[0];

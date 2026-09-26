@@ -11,3 +11,11 @@ export function bestAlphabetResult(previous,result){
  return previous;
 }
 export function nextStepEligible(result){return fullAlphabetResult(result)&&result.correct>=24;}
+
+export function resultCelebration(correct,total){
+ const percent=Math.round(correct/total*100);
+ if(correct===total)return {headline:'100%??? perfect!',tier:'perfect',symbol:'✦ ✧ ✦'};
+ if(percent>=90)return {headline:`${percent}%?? you did great!`,tier:'great',symbol:'✦ ✦'};
+ if(percent>=70)return {headline:`${percent}% — nice progress!`,tier:'progress',symbol:'✦'};
+ return {headline:`${percent}% — keep going!`,tier:'practice',symbol:'↗'};
+}

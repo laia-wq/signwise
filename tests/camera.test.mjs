@@ -4,7 +4,7 @@ import {HoldGate,CameraTest} from '../dist/session.js';
 assert.equal(new Set([...STATIC_IDS,'J','Z']).size,27);
 assert.equal(assessHand(null,null,'L').score,0);
 // Distinctive shapes should be preferred over common lookalikes.
-const neutral={thumbIndexContact:1.3,thumbMiddleBase:.8,middleDown:-1,thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.75,.75,.75,.75],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
+const neutral={eIndexLift:0,thumbIndexContact:1.3,thumbMiddleBase:.8,middleDown:-1,thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.75,.75,.75,.75],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
 const l={...neutral,ext:[1,0,0,0],thumb:-.4,thumbOut:1.1,thumbIndex:1.7};
 assert(scoreFeatures(l,'L').score>=88);assert(scoreFeatures(l,'D').score<88);assert(scoreFeatures(l,'ILY').score<88);
 const v={...neutral,ext:[1,1,0,0]};assert(scoreFeatures(v,'V').score>=88);assert(scoreFeatures(v,'U').score<88);
@@ -257,3 +257,12 @@ for(const [id,pose] of Object.entries(poses)){
  assert(!assessHand(null,null,id).match,`${id} rejects missing hand`);
 }
 console.log('Passed all 25 static lessons (including ILY); J/Z movement regressions covered above.');
+
+// A raised X hook is not E even when the remaining contact checks fit.
+assert(!assessFeatures({...e,eIndexLift:.5},'E').match);
+assert(assessFeatures({...e,eIndexLift:.15},'E').match);
+const relaxedY={...l,ext:[0,0,0,.72],thumbStraight:130,thumbSpread:45,thumb:-.12,thumbOut:.65};
+assert(assessFeatures(relaxedY,'Y').match);
+assert(!assessFeatures({...relaxedY,thumb: .5,thumbSpread:15,thumbOut:.3},'Y').match);
+assert(!assessFeatures({...relaxedY,ext:[0,0,0,.1]},'Y').match);
+console.log('Passed raised X/E distinction and relaxed Y with folded-thumb/pinky rejection.');
