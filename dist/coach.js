@@ -151,10 +151,13 @@ export function scoreFeatures(f,id){
   // O may be more tightly rounded than C, but a flat hand or fist is not O.
   (f.roundness||[NaN]).forEach(v=>required(v,.30,.92,'Keep a rounded space inside the O; do not flatten the fingers into a fist.',.14));
   (f.pipAngles||[NaN]).forEach(v=>required(v,50,165,'Curve your fingers smoothly around the O.',25));
-  // Image landmarks include relative depth. Require both contact and a visible
-  // index bend before using them to corroborate uncertain world-space depth.
-  const imageContact=f.imageIndexTurn<-.2&&f.imageThumbContact<=.28&&f.imageClosure<=.45;
-  required(f.roundSpread,0,.43,'Keep the curved fingers together.',.22);required(imageContact?Math.min(f.thumbIndexContact,f.imageThumbContact):f.thumbIndexContact,0,.28,'Bring the pads of your index finger and thumb together to close the O.',.18);required(imageContact?Math.min(f.closure,f.imageClosure):f.closure,0,.55,'Bring all four fingertips toward the thumb, not just the index.',.25);break;}
+  // Corroborating evidence must fade continuously: a binary image/world
+  // switch caused ~50-point jumps at tiny changes in bend or closure.
+  const imageFit=Math.min(range(f.imageIndexTurn,-1,0,.35),range(f.imageThumbContact,0,.28,.18),range(f.imageClosure,0,.55,.25));
+  required(f.roundSpread,0,.43,'Keep the curved fingers together.',.22);
+  add(Math.max(range(f.thumbIndexContact,0,.28,.18),imageFit),'Bring the pads of your index finger and thumb together to close the O.',true);
+  add(Math.max(range(f.closure,0,.55,.25),imageFit),'Bring all four fingertips toward the thumb, not just the index.',true);break;}
+
  case 'R':add(range(f.cross,0,.5,.2),'Cross your index and middle fingers.');thumbIn();upright();break;
  case 'S':required(f.thumb,.18,.95,'Lay your thumb across the front of your fist.',.25);required(f.thumbContact,0,.32,'Rest the thumb on the curled fingers.',.22);required(f.thumbFront,-.06,.65,'Place the thumb on the front of the fist, not underneath the fingers.',.18);required(f.thumbCover,-.06,.65,'Lay the thumb over the fist rather than tucking it inside.',.16);break;
  case 'V':spread();thumbIn();upright();break;

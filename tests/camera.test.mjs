@@ -241,3 +241,9 @@ const imageO={...o,thumbIndexContact:.62,closure:1.24,imageIndexTurn:-.6,imageTh
 assert(assessFeatures(imageO,'O').match);
 for(const change of [{imageThumbContact:.5},{imageClosure:.7},{imageIndexTurn:.9},{roundness:[1,1,1,1]},{roundness:[.1,.1,.1,.1]}])assert(!assessFeatures({...imageO,...change},'O').match);
 console.log('Passed image-corroborated O contact, open-gap, straight-finger and fist controls.');
+// O's corroboration has no binary cutoff at the old turn/closure boundaries.
+for(const [field,values] of [['imageIndexTurn',[-.201,-.199]],['imageClosure',[.449,.451]],['imageThumbContact',[.279,.281]]]){
+ const scores=values.map(v=>scoreFeatures({...imageO,[field]:v},'O').score);
+ assert(Math.abs(scores[0]-scores[1])<=2,`${field} should change smoothly`);
+}
+console.log('Passed O contact continuity across former cutoff boundaries.');
