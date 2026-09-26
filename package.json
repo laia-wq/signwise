@@ -5,8 +5,10 @@
   "type": "module",
   "description": "Experimental browser-only ASL alphabet practice",
   "scripts": {
-    "test": "node tests/camera.test.mjs && node tests/practice.test.mjs && node tests/diagnostics.test.mjs",
+    "test": "node tests/camera.test.mjs && node tests/practice.test.mjs && node tests/diagnostics.test.mjs && node tests/progress.test.mjs && node tests/app-flow.test.mjs",
     "preview": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }

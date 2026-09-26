@@ -247,3 +247,13 @@ for(const [field,values] of [['imageIndexTurn',[-.201,-.199]],['imageClosure',[.
  assert(Math.abs(scores[0]-scores[1])<=2,`${field} should change smoothly`);
 }
 console.log('Passed O contact continuity across former cutoff boundaries.');
+// Sweep every static lesson through the same scorer and hold used by practice
+// and the test. These are rule fixtures, not a camera-accuracy benchmark.
+const poses={A:{...neutral,thumb:-.3},B:{...neutral,ext:[1,1,1,1],tipGap:.15},C:c,D:{...neutral,ext:[1,0,0,0],thumbMiddle:.15},E:e,F:f,G:gg,H:h,I:{...neutral,ext:[0,0,0,1]},K:k,L:l,M:{...tuckedT,thumbSlot:2.5},N:{...tuckedT,thumbSlot:1.5},O:o,P:pp,Q:q,R:{...v,cross:.2},S:s,T:tuckedT,U:u,V:v,W:{...neutral,ext:[1,1,1,0]},X:{...neutral,ext:[.4,0,0,0],thumbIndex:.8},Y:{...l,ext:[0,0,0,1]},ILY:{...l,ext:[1,0,0,1]}};
+assert.deepEqual(Object.keys(poses).sort(),[...STATIC_IDS].sort());
+for(const [id,pose] of Object.entries(poses)){
+ const a=assessFeatures(pose,id);assert(a.match,`${id} positive rule fixture must match (${a.score}: ${a.hint})`);
+ const hg=new HoldGate(1100);for(let time=0;time<=1100;time+=100){const progress=hg.update(id,a.match,time);assert.equal(progress===1,time===1100);}
+ assert(!assessHand(null,null,id).match,`${id} rejects missing hand`);
+}
+console.log('Passed all 25 static lessons (including ILY); J/Z movement regressions covered above.');

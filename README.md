@@ -17,9 +17,11 @@ Browser-based ASL alphabet practice with experimental camera feedback.
 - Reset motion tracking after sudden position jumps, stale frames, or changes in the detected hand.
 - Practice names letter by letter, requiring a brief hand release so repeated letters cannot reuse the same match.
 - Take randomized timed tests with hidden hints, automatic timeout scoring, and focused practice for missed letters.
+- Save the best full-alphabet test score separately from practice checkmarks and shorter retests.
+- Offer further ASL lessons after a full test reaches 24/26, with a reminder to check recall another day.
 - Pause tests when the camera stops or the tab is hidden, preserving the remaining attempt time.
 - Check hand visibility, framing, size, and stability before camera scoring begins.
-- Optionally label tracked fingertips and export a eight-second, local-only geometry report to investigate missed matches.
+- Optionally label tracked fingertips and export an eight-second, local-only geometry report to investigate missed matches.
 - Process video entirely in your browser and save progress locally without uploading camera frames.
 
 ## Run locally
@@ -49,6 +51,7 @@ npm test
 | `dist/app.js` | Interface and camera integration |
 | `dist/coach.js` | Handshape scoring and motion tracking |
 | `dist/session.js` | Hold detection and timed tests |
+| `dist/progress.js` | Full-alphabet best scores and learning milestones |
 | `dist/practice.js` | Name sequences, retries, and framing checks |
 | `dist/lessons.js` | Lesson content |
 | `tests/` | Scoring and practice logic checks |
