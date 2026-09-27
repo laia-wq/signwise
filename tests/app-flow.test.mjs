@@ -18,6 +18,21 @@ function finish(correct,n=26){app.run(`test=new CameraTest([...'ABCDEFGHIJKLMNOP
 finish(24);assert.equal(app.run('test.state'),'done');assert(app.saved.has('signwise-camera-test-v1'));assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,false);assert.equal(app.nodes['test-results'].children.length,26);
 finish(5,5);assert.equal(app.nodes.count.textContent,'24 / 26');assert.equal(app.nodes['learning-next'].hidden,true);assert.equal(app.nodes['result-headline'].textContent,'100%??? perfect!');
 const reopened=boot(app.saved);assert.equal(reopened.nodes.count.textContent,'24 / 26');
+// Each browser profile owns its storage; a fresh visitor cannot inherit another's results.
+app.run('selected=0;markComplete()');
+const visitor=boot();
+assert.equal(visitor.nodes.count.textContent,'—');
+assert.equal(visitor.nodes['practice-count'].textContent,'0 / 26 letters practiced');
+assert.equal(visitor.run('bestResult'),null);
+assert.equal(visitor.run('missed.length'),0);
+assert.equal(visitor.saved.size,0);
+visitor.run('selected=1;markComplete()');
+assert.equal(visitor.nodes['practice-count'].textContent,'1 / 26 letters practiced');
+assert.equal(boot(visitor.saved).nodes['practice-count'].textContent,'1 / 26 letters practiced');
+assert.equal(app.run('completed.has(lessons[1].id)'),false);
+assert.equal(boot(app.saved).nodes.count.textContent,'24 / 26');
+console.log('Passed fresh-visitor defaults, independent visitor progress, and per-browser persistence.');
+
 finish(23);assert.equal(app.nodes.count.textContent,'24 / 26');assert(app.nodes['learning-next'].hidden);
 app.run("test=new CameraTest(['A','B'],20,()=>.9);test.start(0);test.resolve(true,100,'match');onTestReview(true)");assert.equal(app.nodes['test-outcome'].textContent,'A: correct ✓');
 app.run('endTest()');assert.equal(app.nodes.count.textContent,'24 / 26');
