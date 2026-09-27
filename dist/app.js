@@ -1,9 +1,9 @@
-import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=16';
-import {TrackingReport} from './diagnostics.js?v=16';
-import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=16';
-import {lessons} from './lessons.js?v=16';
-import {assessHand,MotionTracker} from './coach.js?v=16';
-import {HoldGate,CameraTest} from './session.js?v=16';
+import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=17';
+import {TrackingReport} from './diagnostics.js?v=17';
+import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=17';
+import {lessons} from './lessons.js?v=17';
+import {assessHand,MotionTracker} from './coach.js?v=17';
+import {HoldGate,CameraTest} from './session.js?v=17';
 const $=id=>document.getElementById(id),video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
 let selected=0,completed=new Set(),active=false,stream=null,detector=null,detectorPromise=null,requestId=0,raf=0,lastFrame=-1,lastRun=0,lastFeedback='',test=null,testInterval=null,countdownUntil=0,scorePeak=0,lastHand=null,beginPending=false;
 const hold=new HoldGate(1100),motion=new MotionTracker(),setup=new SetupGate();
@@ -13,6 +13,11 @@ function finishCapture(reason='capture finished'){
  $('capture-status').textContent=report.frames.length?`Captured ${report.frames.length} tracking samples. Download the report to share it, or discard it.`:'No tracking samples captured. Enable the camera and try again.';
  $('capture-download').disabled=!report.frames.length;$('capture-start').disabled=false;
 }
+$('copy-report-email').onclick=async()=>{
+ const button=$('copy-report-email'),email=button.textContent;
+ try{await navigator.clipboard.writeText(email);button.title='Copied!';$('copy-email-status').textContent='Email address copied.';}
+ catch{const range=document.createRange();range.selectNodeContents(button);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);button.title='Email selected — copy with Ctrl+C or Command+C';$('copy-email-status').textContent='Email selected. Press Control C or Command C to copy.';}
+};
 $('capture-start').onclick=()=>{
  if(!active){$('capture-status').textContent='Enable the camera first, then start a capture.';return;}
  if(test&&test.state!=='done'){ $('capture-status').textContent='End the test and capture the letter in practice.';return;}
