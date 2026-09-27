@@ -2,7 +2,7 @@
 
 Browser-based ASL alphabet practice with experimental camera feedback.
 
-[Live demo](https://signwise-first-signs.julienleh.chatgpt.site/)
+[Live demo](https://laia-wq.github.io/signwise/)
 
 ## Features
 
