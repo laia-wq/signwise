@@ -66,7 +66,13 @@ export function features(points,w){
  const imageIndexTurn=dot(unit(sub(flat(points[6]),flat(points[5]))),unit(sub(flat(points[8]),flat(points[6]))));
  const imageThumbContact=dist(points[4],points[8])/imagePalm;
  const imageClosure=Math.max(...[8,12,16,20].map(i=>dist(points[4],points[i])/imagePalm));
- return {imageIndexTurn,imageThumbContact,imageClosure,pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
+ return {
+  // Palm-local measurements stay meaningful when the wrist rotates. A needs
+  // a thumb alongside the index, not merely on the index side of the palm.
+  thumbAlong:dot(unit(sub(w[4],w[3])),longitudinal),
+  thumbIndexSide:segmentDistance(w[4],w[5],w[6])/palm,
+  thumbKnuckleHeight:dot(sub(w[4],w[6]),longitudinal)/palm,
+  imageIndexTurn,imageThumbContact,imageClosure,pinkyTurn,folded,hookDirection:Math.abs(points[5].x-points[17].x)>.015?Math.sign(points[5].x-points[17].x):0,thumbSlot,pipAngles,dipAngles,thumbIndexContact,thumbMiddleBase,middleDown:middleVec.y/middleLen,
   eIndexLift:(dot(sub(w[8],w[0]),longitudinal)-Math.max(...[12,16].map(i=>dot(sub(w[i],w[0]),longitudinal))))/palm,
   eContact:Math.max(...tipToThumb.slice(0,3)),
   eHeight:[8,12,16].reduce((n,i)=>n+dot(sub(w[i],w[3]),longitudinal)/palm,0)/3,
@@ -97,6 +103,12 @@ export function scoreFeatures(f,id){
    x===1?range(f.ext[i],id==='Y'&&i===3?.68:.80,1,.30):x===0?range(f.folded?.[i]??f.ext[i],0,['M','N','T'].includes(id)?.48:.40,.25):range(f.ext[i],x-.18,x+.18,.4);
   add(fit,`${x===1?'Extend':x===0?'Curl':'Curve'} your ${['index','middle','ring','pinky'][i]} finger.`,true,[i+1]);
  });
+ // A/S need curled outer joints as well as base-knuckle folding. Keep this
+ // local: the base-fold allowance is useful for K/P/W and must not regress.
+ if(id==='A'||id==='S'){
+  (f.roundness||[NaN]).forEach(v=>required(v,0,.72,'Close your fingers into a fist, rather than a flat fold or open curve.',.15));
+  (f.pipAngles||[NaN]).forEach(v=>required(v,0,115,'Curl the middle joints of all four fingers into the fist.',25));
+ }
  const upright=()=>required(f.up,.55,1,'Point the raised fingers upward.',.4);
  const thumbIn=(contact=f.thumbRingContact)=>{
   required(f.thumb,.04,1.25,'Fold your thumb across the palm, not out to the side.',.22);
@@ -114,7 +126,12 @@ export function scoreFeatures(f,id){
  };
  const spread=()=>add(range(f.tipGap,.32,1.2,.32),'Separate your index and middle fingers.');
  switch(id){
- case 'A':add(range(f.thumb,-.65,.12,.35),'Place your thumb beside the fist.');add(range(f.thumbTips,.45,1.2,.35),'Keep the thumb beside, not under, the curled fingertips.');break;
+ case 'A':
+  required(f.thumb,-.65,.08,'Keep your thumb beside the fist, not across its front.',.2);
+  required(f.thumbIndexSide,0,.28,'Rest your thumb against the side of your index finger.',.18);
+  required(f.thumbAlong,.55,1,'Point your thumb along the side of the fist, not outward or inward.',.25);
+  required(f.thumbKnuckleHeight,-.45,.25,'Keep your thumb beside the fist rather than raised in a thumbs-up.',.18);
+  break;
  case 'B':add(range(f.thumb,.2,.9,.4),'Fold your thumb across the palm.');add(range(f.tipGap,0,.27,.25),'Bring your fingers together.');upright();break;
  case 'C':round();required(f.thumbIndex,.38,1.05,'Leave an open C-shaped gap between thumb and fingertips.',.22);break;
  case 'D':add(range(f.thumbMiddle,0,.45,.4),'Touch your thumb to the curled fingers.');add(range(f.thumbIndex,.8,2,.5),'Keep the index separate from the thumb.');upright();break;
@@ -214,9 +231,9 @@ export class MotionTracker{
  get trail(){return !this.origin||!this.scale?[]:this.samples.map(p=>({x:this.origin.x+p.x*this.scale/.2*(this.direction??(this.hand==='Left'?1:-1)),y:this.origin.y+p.y*this.scale/.2}));}
  update(id,point,now,shapeOK,hand='Right',palmScale=.2,hookDirection=0){
   const interrupted=this.id!==id||this.hand!==hand||now-this.last>350||this.scale&&Math.abs(palmScale/this.scale-1)>(id==='J'?.55:.35);
-  // A single uncertain J frame pauses the pen, without drawing or granting a
+  // A brief uncertain frame pauses either pen, without drawing or granting a
   // match. Sustained loss clears it. Rotation can briefly occlude fingertips.
-  if(id==='J'&&!interrupted&&this.armed&&!shapeOK&&point&&Number.isFinite(point.x+point.y)&&this.lastGood!==null&&now-this.lastGood<=180){
+  if(!interrupted&&this.armed&&!shapeOK&&this.lastGood!==null&&now-this.lastGood<=180){
    this.last=now;return {score:0,match:false,phase:'paused'};
   }
   if(interrupted||!shapeOK||!point||!Number.isFinite(point.x+point.y)||!(palmScale>.04)){
@@ -251,7 +268,13 @@ export class MotionTracker{
   if(!prev||Math.hypot(x-prev.x,y-prev.y)>.004)this.samples.push({x,y,t:now});
   if(this.samples.length&&now-this.samples[0].t>4500){this.samples=[];this.origin=null;this.scale=null;return {score:0,match:false};}
   if(this.samples.length<5)return {score:0,match:false};
-  const ps=this.samples,a=ps[0],end=ps.at(-1);if(end.t-a.t<450)return {score:0,match:false};
+  const raw=this.samples;
+  if(raw.at(-1).t-raw[0].t<250)return {score:0,match:false};
+  const extent=Math.max(Math.max(...raw.map(p=>p.x))-Math.min(...raw.map(p=>p.x)),Math.max(...raw.map(p=>p.y))-Math.min(...raw.map(p=>p.y)));
+  // Require real palm-relative travel before comparing proportions. Uniform
+  // normalization preserves aspect ratio; tiny jitter cannot become a letter.
+  if(extent<.055||extent>.40)return {score:0,match:false};
+  const ps=raw.map(p=>({...p,x:p.x*.13/extent,y:p.y*.13/extent})),a=ps[0],end=ps.at(-1);
   let match=false,progress=0;
   if(id==='Z'){
    // Try actual corners, rather than letting unrelated points somewhere in a

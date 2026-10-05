@@ -1,9 +1,9 @@
-import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=17';
-import {TrackingReport} from './diagnostics.js?v=17';
-import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=17';
-import {lessons} from './lessons.js?v=17';
-import {assessHand,MotionTracker} from './coach.js?v=17';
-import {HoldGate,CameraTest} from './session.js?v=17';
+import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=18';
+import {TrackingReport} from './diagnostics.js?v=18';
+import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=18';
+import {lessons} from './lessons.js?v=18';
+import {assessHand,MotionTracker} from './coach.js?v=18';
+import {HoldGate,CameraTest} from './session.js?v=18';
 const $=id=>document.getElementById(id),video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
 let selected=0,completed=new Set(),active=false,stream=null,detector=null,detectorPromise=null,requestId=0,raf=0,lastFrame=-1,lastRun=0,lastFeedback='',test=null,testInterval=null,countdownUntil=0,scorePeak=0,lastHand=null,beginPending=false;
 const hold=new HoldGate(1100),motion=new MotionTracker(),setup=new SetupGate();
@@ -91,7 +91,7 @@ function renderProgress(){
 }
 function feedback(title,detail='',success=false){const key=title+detail+success;if(key===lastFeedback)return;lastFeedback=key;$('feedback-title').textContent=title;$('feedback-detail').textContent=detail;document.querySelector('.feedback').classList.toggle('success',success);}
 function resetTracking(){hold.reset();motion.reset();lastHand=null;scorePeak=0;$('match-score').textContent='—';$('match-meter').value=0;$('hold-meter').value=0;$('hold-label').textContent='Waiting for a clear hand';}
-function render(){const l=lessons[selected];$('lessons').innerHTML=lessons.map((x,i)=>`<button class="lesson-button ${i===selected?'active':''}" data-index="${i}" aria-pressed="${i===selected}" aria-label="${x.name}" ${test&&test.state!=='done'?'disabled':''}><span class="lesson-glyph">${x.id==='ILY'?'♡':x.id}</span><span><strong>${x.name}</strong><small>${x.sub}</small></span><span class="lesson-check">${completed.has(x.id)?'✓':''}</span></button>`).join('');$('title').textContent=test&&test.state!=='done'?`Make the letter ${l.id}`:l.id==='ILY'?'I love you':`Meet the letter ${l.id}`;$('letter').textContent=l.id;$('description').textContent=l.desc;$('steps').innerHTML=l.steps.map(s=>`<li>${s}</li>`).join('');$('tip').textContent=l.tip;$('hand-figure').hidden=!l.image;if(l.image){$('hand-reference').src=l.image;$('hand-reference').alt=`ASL ${l.id}${l.motion?' handshape and movement arrows':' handshape reference'}`;}$('motion-note').hidden=!l.motion;$('motion-tools').hidden=!l.motion;$('motion-note').textContent=`Hold the starting handshape until the pen is ready. Your ${l.id==='J'?'pinky':'index'} tip draws the trail. Keep the shape as you trace ${l.id}; a lost shape clears the stroke.`;$('coach-mode').textContent=l.motion?'Camera motion matching':'Camera handshape matching';$('camera-prompt').textContent='Your turn to sign';$('camera-help').textContent='Enable your camera for a live match score.';$('image-source').href='https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg';$('reference').textContent=l.id==='ILY'?'View ASL University reference ↗':'View HandSpeak alphabet reference ↗';$('reference').href=l.id==='ILY'?'https://www.lifeprint.com/asl101/topics/ily.htm':'https://www.handspeak.com/topic/408/';renderProgress();$('completion-status').textContent=completed.has(l.id)?'Practiced with the camera ✓':'Hold a camera match to mark this letter practiced';$('next').innerHTML=selected===26?'Back to letter A ↻':'Next handshape →';$('image-error').hidden=true;renderTest();renderSequence();}
+function render(){const l=lessons[selected];$('lessons').innerHTML=lessons.map((x,i)=>`<button class="lesson-button ${i===selected?'active':''}" data-index="${i}" aria-pressed="${i===selected}" aria-label="${x.name}" ${test&&test.state!=='done'?'disabled':''}><span class="lesson-glyph">${x.id==='ILY'?'♡':x.id}</span><span><strong>${x.name}</strong><small>${x.sub}</small></span><span class="lesson-check">${completed.has(x.id)?'✓':''}</span></button>`).join('');$('title').textContent=test&&test.state!=='done'?`Make the letter ${l.id}`:l.id==='ILY'?'I love you':`Meet the letter ${l.id}`;$('letter').textContent=l.id;$('description').textContent=l.desc;$('steps').innerHTML=l.steps.map(s=>`<li>${s}</li>`).join('');$('tip').textContent=l.tip;$('hand-figure').hidden=!l.image;if(l.image){$('hand-reference').src=l.image;$('hand-reference').alt=`ASL ${l.id}${l.motion?' handshape and movement arrows':' handshape reference'}`;}$('motion-note').hidden=!l.motion;$('motion-tools').hidden=!l.motion;$('motion-note').textContent=`Hold the starting handshape until the pen is ready. Your ${l.id==='J'?'pinky':'index'} tip draws the trail. Keep the shape as you trace ${l.id}; brief tracking loss pauses the pen; longer loss clears the stroke.`;$('coach-mode').textContent=l.motion?'Camera motion matching':'Camera handshape matching';$('camera-prompt').textContent='Your turn to sign';$('camera-help').textContent='Enable your camera for a live match score.';$('image-source').href='https://commons.wikimedia.org/wiki/File:Asl_alphabet_gallaudet.svg';$('reference').textContent=l.id==='ILY'?'View ASL University reference ↗':'View HandSpeak alphabet reference ↗';$('reference').href=l.id==='ILY'?'https://www.lifeprint.com/asl101/topics/ily.htm':'https://www.handspeak.com/topic/408/';renderProgress();$('completion-status').textContent=completed.has(l.id)?'Practiced with the camera ✓':'Hold a camera match to mark this letter practiced';$('next').innerHTML=selected===26?'Back to letter A ↻':'Next handshape →';$('image-error').hidden=true;renderTest();renderSequence();}
 function selectLesson(index){if(sequence||test&&test.state!=='done')return;selected=index;resetTracking();render();feedback('Ready when you are.',lessons[index].motion?'Show the starting shape, then draw the movement slowly.':'Reach an 88/100 handshape match and hold for just over a second.');}
 function markComplete(){const id=lessons[selected].id;if(!completed.has(id)){completed.add(id);try{localStorage.setItem('signwise-camera-completed-v1',JSON.stringify([...completed]));}catch{}render();}}
 $('lessons').onclick=e=>{const b=e.target.closest('[data-index]');if(b)selectLesson(Number(b.dataset.index));};$('next').onclick=()=>selectLesson((selected+1)%lessons.length);
@@ -130,6 +130,17 @@ function processFrame(r,now){
   return;
  }
  if(sequence?.state==='done'){ctx.clearRect(0,0,canvas.width,canvas.height);return;}
+ // A short detector dropout pauses existing ink only. A second hand, poor
+ // framing, or sustained loss still clears the attempt; no missing frame scores.
+ if(r.landmarks.length===0&&lessons[selected].motion&&motion.armed){
+  const paused=motion.update(lessons[selected].id,null,now,false,motion.hand,motion.scale);
+  if(paused.phase==='paused'){
+   hold.reset();ctx.clearRect(0,0,canvas.width,canvas.height);drawMotion(false);
+   $('hold-label').textContent='Pen paused · bring the handshape back into view';
+   $('match-score').textContent='0';$('match-meter').value=0;
+   return;
+  }
+ }
  if(r.landmarks.length!==1){$('setup-message').textContent=r.landmarks.length>1?'Show one hand for reliable tracking.':'No hand tracked.';resetTracking();ctx.clearRect(0,0,canvas.width,canvas.height);feedback(r.landmarks.length>1?'Show only one hand.':'Bring your hand into view.',test?.state==='running'?'The timer is running.':'Keep all fingertips visible.');return;}
  const frame=framing(r.landmarks[0]);
  if(!frame.ok){resetTracking();ctx.clearRect(0,0,canvas.width,canvas.height);$('setup-message').textContent=frame.message;feedback('Tracking is unclear.',frame.message+(test?.state==='running'?' The timer is still running.':''));return;}
@@ -142,7 +153,7 @@ function processFrame(r,now){
  let score=result.score,matched=false,progress=0;
  let movement=null;
  if(l.motion){
-  movement=motion.update(l.id,r.landmarks[0][l.id==='J'?20:8],now,result.valid&&result.match,handed,result.features?.screenPalm,result.features?.hookDirection);
+  movement=motion.update(l.id,r.landmarks[0][l.id==='J'?20:8],now,result.valid&&result.match,handed,result.features?.screenPalm??motion.scale??.2,result.features?.hookDirection);
   score=Math.round(result.score*.45+movement.score*.55);matched=movement.match&&result.match;progress=movement.phase==='arming'?movement.ready*.2:movement.score/100;
   const digit=l.id==='J'?'Pinky':'Index';
   $('hold-label').textContent=matched?'Movement matched':movement.phase==='shape'?'Pen off · show the starting handshape':movement.phase==='arming'?'Hold still · getting the pen ready':movement.phase==='paused'?'Pen paused · bring the handshape back into view':movement.phase==='retry'?'Stroke cleared · hold the starting shape again':`${digit} pen on · ${movement.score===0?'start your stroke':movement.score===35?(l.id==='J'?'downstroke seen · curve toward your thumb':'top stroke seen'):movement.score===65?'finish the bottom stroke':'downstroke seen · finish the hook'}`;

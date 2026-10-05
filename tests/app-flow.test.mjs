@@ -38,3 +38,18 @@ app.run("test=new CameraTest(['A','B'],20,()=>.9);test.start(0);test.resolve(tru
 app.run('endTest()');assert.equal(app.nodes.count.textContent,'24 / 26');
 app.nodes.reset.onclick();assert.equal(app.nodes.count.textContent,'—');assert.equal(app.saved.size,0);
 console.log('Passed app result rendering, short-test isolation, reload persistence, early exit and reset.');
+// The UI must preserve the tracker's bounded dropout behavior in both modes.
+for(const id of ['J','Z'])for(const inTest of [false,true]){
+ const visitor=boot();
+ visitor.run(`setupReady=true;selected=lessons.findIndex(l=>l.id==='${id}');drawMotion=()=>{};
+  ${inTest?`test=new CameraTest(['${id}'],20);test.start(0);`:''}
+  for(let t=-400;t<=0;t+=100)motion.update('${id}',{x:.5,y:.3},t,true);
+  processFrame({landmarks:[]},100);`);
+ assert.equal(visitor.run('motion.trail.length'),1);
+ assert.equal(visitor.run('completed.size'),0);
+ assert.equal(visitor.nodes['match-score'].textContent,'0');
+ visitor.run('processFrame({landmarks:[]},200)');
+ assert.equal(visitor.run('motion.trail.length'),0);
+ if(inTest)assert.equal(visitor.run('test.total'),0);
+}
+console.log('Passed practice/test dropout integration without awarding progress.');

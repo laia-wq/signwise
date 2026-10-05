@@ -4,7 +4,7 @@ import {HoldGate,CameraTest} from '../dist/session.js';
 assert.equal(new Set([...STATIC_IDS,'J','Z']).size,27);
 assert.equal(assessHand(null,null,'L').score,0);
 // Distinctive shapes should be preferred over common lookalikes.
-const neutral={eIndexLift:0,thumbIndexContact:1.3,thumbMiddleBase:.8,middleDown:-1,thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.75,.75,.75,.75],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
+const neutral={thumbAlong:.9,thumbIndexSide:.15,thumbKnuckleHeight:0,eIndexLift:0,thumbIndexContact:1.3,thumbMiddleBase:.8,middleDown:-1,thumbSlot:.5,localCover:[.15,.15,.15],pipAngles:[110,110,110,110],dipAngles:[90,90,90,90],eContact:.9,eHeight:.25,thumbSide:1,roundness:[.60,.60,.60,.60],roundSpread:.25,closure:.35,thumbStraight:165,thumbSpread:85,thumbParallel:.9,thumbDown:1,thumbContact:.12,thumbRingContact:.12,thumbPinkyContact:.12,thumbBetween:.5,thumbCover:.15,thumbFront:.18,ext:[0,0,0,0],thumb:.5,thumbOut:.3,thumbIndex:1.3,thumbMiddle:.8,tipGap:.5,ringGap:.5,cross:-.3,thumbTips:.9,up:1,side:0,down:-1};
 const l={...neutral,ext:[1,0,0,0],thumb:-.4,thumbOut:1.1,thumbIndex:1.7};
 assert(scoreFeatures(l,'L').score>=88);assert(scoreFeatures(l,'D').score<88);assert(scoreFeatures(l,'ILY').score<88);
 const v={...neutral,ext:[1,1,0,0]};assert(scoreFeatures(v,'V').score>=88);assert(scoreFeatures(v,'U').score<88);
@@ -266,3 +266,68 @@ assert(assessFeatures(relaxedY,'Y').match);
 assert(!assessFeatures({...relaxedY,thumb: .5,thumbSpread:15,thumbOut:.3},'Y').match);
 assert(!assessFeatures({...relaxedY,ext:[0,0,0,.1]},'Y').match);
 console.log('Passed raised X/E distinction and relaxed Y with folded-thumb/pinky rejection.');
+
+// Expert-feedback regressions: these are geometry cases, not reconstructed
+// screenshots. A detached / sideways / tucked / raised thumb is not A.
+const validA={...poses.A,roundness:[.5,.55,.6,.5],pipAngles:[85,90,95,90]};
+for(const delta of [{},{thumbAlong:.65,thumbIndexSide:.24,thumbKnuckleHeight:.15},{thumb:-.1,thumbAlong:.8}])assert(assessFeatures({...validA,...delta},'A').match);
+for(const delta of [{thumbIndexSide:.65},{thumbAlong:0},{thumbAlong:-.7},{thumbKnuckleHeight:.6},{thumb:.5},{thumbIndexSide:NaN}])assert(!assessFeatures({...validA,...delta},'A').match,JSON.stringify(delta));
+for(const id of ['A','S']){
+ const pose=id==='A'?validA:s;
+ assert(assessFeatures(pose,id).match);
+ for(const delta of [{roundness:[1,1,1,1],pipAngles:[180,180,180,180]},{roundness:[.95,.5,.5,.5]},{pipAngles:[90,155,90,90]}])assert(!assessFeatures({...pose,...delta},id).match,`${id} rejects non-fist fingers`);
+}
+for(const delta of [{thumb:-.35},{thumbContact:.7},{thumbFront:-.3},{thumbCover:-.3}])assert(!assessFeatures({...s,...delta},'S').match);
+// New A measurements are invariant to world translation, rotation and reflection.
+for(const other of [features(screen,transformed),features(screen,mirrored)])for(const key of ['thumbAlong','thumbIndexSide','thumbKnuckleHeight'])assert(Math.abs(other[key]-extracted[key])<1e-5,key);
+
+function motionCase(id,path,{hand='Right',amplitude=1,interval=100,tilt=0,badFrames=[],badShape=false}={}){
+ const m=new MotionTracker(),sign=hand==='Left'?-1:1,c=Math.cos(tilt),s=Math.sin(tilt);
+ const points=path.map(([x,y])=>{const dx=(x-path[0][0])*amplitude,dy=(y-path[0][1])*amplitude;return {x:.5+sign*(dx*c-dy*s),y:.3+dx*s+dy*c};});
+ for(let t=-400;t<=0;t+=100)m.update(id,points[0],t,!badShape,hand,.2);
+ let matched=false;
+ points.forEach((p,i)=>{const r=m.update(id,p,i*interval,!badShape&&!badFrames.includes(i),hand,.2);matched ||= r.match;});
+ return {m,matched};
+}
+for(const id of ['J','Z'])for(const hand of ['Left','Right'])for(const amplitude of [.8,1,1.6])for(const interval of [45,100,250])for(const tilt of [-.10,0,.10]){
+ const result=motionCase(id,id==='J'?roundedJ:z,{hand,amplitude,interval,tilt});
+ assert(result.matched,`${id} ${hand} amplitude=${amplitude} dt=${interval} tilt=${tilt}`);
+}
+for(const id of ['J','Z']){
+ const path=id==='J'?roundedJ:z;
+ assert(!motionCase(id,path,{badShape:true}).matched,'Wrong starting shape cannot arm');
+ assert(!motionCase(id,path,{amplitude:.12}).matched,'Tiny movements cannot be normalized into a letter');
+ assert(!motionCase(id,path.map(([x,y])=>[2*path[0][0]-x,y])).matched,'Wrong direction');
+ assert(!motionCase(id,path.slice(0,4)).matched,'Incomplete stroke');
+ assert(!motionCase(id,scribble).matched,'Scribble');
+ assert(motionCase(id,path,{badFrames:[1]}).matched,`${id} brief loss on the straight segment`);
+ assert(!motionCase(id,path,{badFrames:[1,2,3]}).matched,`${id} sustained shape loss resets`);
+}
+console.log('Passed A/S expert-feedback geometry and J/Z speed, size, tilt, handedness and negative motion cases.');
+// Synthetic 3D fists exercise the feature extractor, not just feature values.
+const fist=[{x:0,y:0,z:0},{x:-.8,y:.35,z:0},{x:-.8,y:.75,z:0},{x:-.8,y:1.1,z:0},{x:-.8,y:1.4,z:0}];
+for(const x of [-.6,-.2,.2,.6])fist.push({x,y:1,z:0},{x,y:1.45,z:0},{x,y:1.5,z:.35},{x,y:1.2,z:.55});
+const sFist=fist.map(p=>({...p}));sFist[3]={x:-.1,y:1.1,z:.5};sFist[4]={x:.3,y:1.35,z:.55};
+for(const [id,pose] of [['A',fist],['S',sFist]])for(const mirror of [-1,1])for(const rotation of [-.4,0,.4]){
+ const rotated=pose.map(p=>({x:mirror*(p.x*Math.cos(rotation)+p.z*Math.sin(rotation)),y:p.y,z:-p.x*Math.sin(rotation)+p.z*Math.cos(rotation)}));
+ assert(assessHand(toScreen(rotated),toWorld(rotated),id).match,`${id} rotated mirrored fist`);
+}
+for(const [id,pose] of [['A',fist],['S',sFist]]){
+ for(const tip of [{x:-1.7,y:1.4,z:0},{x:-1.2,y:.8,z:0},{x:-.8,y:2.1,z:0}]){
+  const bad=pose.map(p=>({...p}));bad[4]=tip;
+  assert(!assessHand(toScreen(bad),toWorld(bad),id).match,`${id} rejects detached/sideways/raised thumb geometry`);
+ }
+ const flatFold=pose.map(p=>({...p}));
+ for(const b of [5,9,13,17])baseFold.forEach((p,n)=>flatFold[b+n]={...p,x:flatFold[b].x});
+ assert(!assessHand(toScreen(flatFold),toWorld(flatFold),id).match,`${id} rejects flat outer joints`);
+}
+for(const id of ['J','Z']){
+ const m=new MotionTracker();for(let t=-400;t<=0;t+=100)m.update(id,{x:.5,y:.3},t,true);
+ const ink=m.trail;
+ assert.equal(m.update(id,null,100,false).phase,'paused');assert.deepEqual(m.trail,ink);
+ assert.equal(m.update(id,null,200,false).phase,'shape');assert.equal(m.trail.length,0);
+}
+console.log('Passed synthetic A/S landmark extraction and bounded missing-landmark pauses.');
+const gentleZ=[[.7,.3],[.66,.304],[.62,.30],[.648,.345],[.68,.38],[.70,.42],[.66,.417],[.62,.42],[.60,.42]];
+for(const hand of ['Left','Right'])for(const amplitude of [.8,1.5])assert(motionCase('Z',gentleZ,{hand,amplitude}).matched,'Slightly curved Z with unequal bars');
+for(const id of ['J','Z'])for(const path of [Array.from({length:9},(_,i)=>[.7-i*.012,.3+i*.012]),Array.from({length:9},(_,i)=>[.7,.3+i*.015])])assert(!motionCase(id,path).matched,'Straight or diagonal motion is not a letter');
