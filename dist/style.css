@@ -20,4 +20,4 @@ li{font-size:16px}.instructions a,.tip,.tip strong,.feedback p,.secondary{font-s
 .copy-email{font:inherit;color:inherit;background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:3px;cursor:pointer;user-select:all;overflow-wrap:anywhere}.copy-email:focus-visible{outline:2px solid var(--purple);outline-offset:3px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* Keep live corrections at camera height, above the written steps. */
-.guidance-column{min-width:0}.guidance-column>.feedback{margin:0 0 20px;align-items:flex-start}.testing .guidance-column{max-width:680px;margin:0 auto}.testing .guidance-column>.feedback{margin-bottom:14px}
+.guidance-column{min-width:0}.guidance-column>.feedback{margin:0 0 20px;align-items:flex-start}.testing .guidance-column{display:none}
