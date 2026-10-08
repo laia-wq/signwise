@@ -331,3 +331,14 @@ console.log('Passed synthetic A/S landmark extraction and bounded missing-landma
 const gentleZ=[[.7,.3],[.66,.304],[.62,.30],[.648,.345],[.68,.38],[.70,.42],[.66,.417],[.62,.42],[.60,.42]];
 for(const hand of ['Left','Right'])for(const amplitude of [.8,1.5])assert(motionCase('Z',gentleZ,{hand,amplitude}).matched,'Slightly curved Z with unequal bars');
 for(const id of ['J','Z'])for(const path of [Array.from({length:9},(_,i)=>[.7-i*.012,.3+i*.012]),Array.from({length:9},(_,i)=>[.7,.3+i*.015])])assert(!motionCase(id,path).matched,'Straight or diagonal motion is not a letter');
+// C must reject pad contact even if the fingertip centers appear separated.
+for(const thumbIndex of [.45,.65,.9])for(const contact of [.08,.20,.28]){
+ const closed={...c,thumbIndex,thumbIndexContact:contact};
+ assert(!assessFeatures(closed,'C').match,'Closed finger pads are not C');
+}
+for(const gap of [.4,.55,.8])assert(assessFeatures({...c,thumbIndex:gap,thumbIndexContact:gap-.04},'C').match,'Visible open C remains accepted');
+assert(!assessFeatures({...imageO,thumbIndex:.7},'C').match,'Image-corroborated O cannot pass C when world depth invents a gap');
+assert(assessFeatures({...c,thumbIndexContact:.6,imageIndexTurn:-.5,imageThumbContact:.55,imageClosure:.85},'C').match,'An open curved hand is C');
+assert(assessFeatures({...c,thumbIndexContact:.6,imageIndexTurn:-.5,imageThumbContact:.1,imageClosure:.95},'C').match,'Projected overlap alone does not establish whole-hand closure');
+assert(assessFeatures(o,'O').match);assert(assessFeatures(imageO,'O').match);
+console.log('Passed C/O pad-contact separation and image-closure regressions.');

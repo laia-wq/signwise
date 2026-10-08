@@ -133,7 +133,18 @@ export function scoreFeatures(f,id){
   required(f.thumbKnuckleHeight,-.45,.25,'Keep your thumb beside the fist rather than raised in a thumbs-up.',.18);
   break;
  case 'B':add(range(f.thumb,.2,.9,.4),'Fold your thumb across the palm.');add(range(f.tipGap,0,.27,.25),'Bring your fingers together.');upright();break;
- case 'C':round();required(f.thumbIndex,.38,1.05,'Leave an open C-shaped gap between thumb and fingertips.',.22);break;
+ case 'C':{
+  round();
+  required(f.thumbIndex,.38,1.05,'Leave an open C-shaped gap between thumb and fingertips.',.22);
+  // Tip centers can remain separated when the finger pads touch. C requires
+  // pad separation too; use the same segment geometry that closes an O.
+  required(f.thumbIndexContact,.34,2.5,'Separate your thumb and index finger pads; keep the C open.',.12);
+  // World depth can invent a gap in a visibly closed O. Require corroborated
+  // image curvature AND whole-hand closure, not just projected tip overlap.
+  const closedImage=Math.min(range(f.imageIndexTurn,-1,0,.35),range(f.imageThumbContact,0,.28,.18),range(f.imageClosure,0,.55,.25));
+  add(1-closedImage,'Open the circle: your thumb and fingertips should not touch for C.',true);
+  break;}
+
  case 'D':add(range(f.thumbMiddle,0,.45,.4),'Touch your thumb to the curled fingers.');add(range(f.thumbIndex,.8,2,.5),'Keep the index separate from the thumb.');upright();break;
  case 'E':
   required(f.eIndexLift,-1,.24,'Lower your curled index fingertip alongside the other fingertips; do not leave an X-shaped hook raised.',.2);

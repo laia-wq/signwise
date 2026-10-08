@@ -1,9 +1,9 @@
-import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=18';
-import {TrackingReport} from './diagnostics.js?v=18';
-import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=18';
-import {lessons} from './lessons.js?v=18';
-import {assessHand,MotionTracker} from './coach.js?v=18';
-import {HoldGate,CameraTest} from './session.js?v=18';
+import {bestAlphabetResult,nextStepEligible,resultCelebration} from './progress.js?v=21';
+import {TrackingReport} from './diagnostics.js?v=21';
+import {normalizeName,missedLetters,PracticeSequence,SetupGate,framing} from './practice.js?v=21';
+import {lessons} from './lessons.js?v=21';
+import {assessHand,MotionTracker} from './coach.js?v=21';
+import {HoldGate,CameraTest} from './session.js?v=21';
 const $=id=>document.getElementById(id),video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
 let selected=0,completed=new Set(),active=false,stream=null,detector=null,detectorPromise=null,requestId=0,raf=0,lastFrame=-1,lastRun=0,lastFeedback='',test=null,testInterval=null,countdownUntil=0,scorePeak=0,lastHand=null,beginPending=false;
 const hold=new HoldGate(1100),motion=new MotionTracker(),setup=new SetupGate();
